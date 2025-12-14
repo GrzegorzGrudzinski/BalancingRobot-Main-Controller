@@ -19,13 +19,17 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "i2c.h"
+#include "rtc.h"
 #include "usart.h"
-#include "usb_otg.h"
+#include "usb_device.h"
 #include "gpio.h"
-#include "mpu6050.h"
-#include "position_checker.c"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdio.h>
+#include "usbd_cdc_if.h"
+#include "process_commands.h"
+// #include "position_checker.c"
 
 /* USER CODE END Includes */
 
@@ -36,6 +40,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define USB_BLOCK_SIZE 0x200	//512 bytes
 
 /* USER CODE END PD */
 
@@ -47,8 +52,12 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-MPU6050_t MPU6050;
-PID_t pid;
+
+// MPU6050_t MPU6050;
+// PID_t pid;
+
+RX_Struct rx_struct = {0};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -59,6 +68,35 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+// _write override for the printf funct
+int _write(int file, char *ptr, int len) {
+    CDC_Transmit_FS((uint8_t*) ptr, len);
+    return len;
+}
+
+
+// Callback przerwania - wywołuje się po odebraniu każdego znaku
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  if (huart->Instance == USART2)
+  {
+    // 1. Dodaj znak do bufora, jeśli jest miejsce
+    if (rx_struct.rx_index < sizeof(rx_struct.rx_buffer) - 1) {
+        rx_struct.rx_buffer[rx_struct.rx_index++] = rx_struct.rx_byte;
+    }
+
+    // 2. Sprawdź czy to koniec linii '\n'
+    if (rx_struct.rx_byte == '\n') {
+       rx_struct.rx_buffer[rx_struct.rx_index] = '\0'; // Dodaj zero na koniec stringa
+       rx_struct.msg_received = 1;              // Ustaw flagę dla pętli głównej
+       // rx_struct.rx_index = 0; // Reset zrobimy w main po odczytaniu
+    }
+    
+    // 3. Nasłuchuj kolejnego znaku
+    HAL_UART_Receive_IT(&huart2, &rx_struct.rx_byte, 1);
+  }
+}
 
 /* USER CODE END 0 */
 
@@ -93,35 +131,52 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_USART1_UART_Init();
-  MX_USB_OTG_FS_HCD_Init();
   MX_USART2_UART_Init();
+  MX_I2C2_Init();
+  MX_USB_DEVICE_Init();
+  MX_RTC_Init();
   /* USER CODE BEGIN 2 */
-  while (MPU6050_Init(&hi2c1) == 1);
-  pidInit(&pid, 2, 0.2, 0.2, 1000);
+  // while (MPU6050_Init(&hi2c1) == 1);
+  // pidInit(&pid, 2, 0.2, 0.2, 1000);
+  HAL_Delay(500);
+  printf("STM32F401 UART Master Start!\r\n");
 
+  HAL_UART_Receive_IT(&huart2, &rx_struct.rx_byte, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  float desired_angle = 90.0f;
-  float output = 0.0f;
+  // float desired_angle = 90.0f;
+  // float output = 0.0f;
+
+  const char *data = "Hello from MCU!\r\n";
+
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    MPU6050_Read_All(&hi2c1, &MPU6050);
-         
-    float angle = MPU6050.KalmanAngleX;
 
-    output = run_pid(&pid, angle, desired_angle);
-    
+    // 1. Read MPU6050 data
+    // MPU6050_Read_All(&hi2c1, &MPU6050);
+    // float angle = MPU6050.KalmanAngleX;
+
+    // 2. Compute PID
+    // output = run_pid(&pid, angle, desired_angle);
+
+    // 3. Recieve data from ESCs
+
+    // 4. Send data to ESCs
     // convert values to motor commands (angle -> linear vel)
-          
+
     // send pos to motors
-    
-    //
-    HAL_Delay (100);
+
+    process_data(&rx_struct, data, strlen(data), &huart2);
+
+    // Obsługa USB i innych zadań w tle
+    /* USER CODE END WHILE */
+
+    HAL_Delay(1000); // Wyślij ponownie za sekundę
   }
   /* USER CODE END 3 */
 }
@@ -143,16 +198,15 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 15;
-  RCC_OscInitStruct.PLL.PLLN = 144;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = 5;
+  RCC_OscInitStruct.PLL.PLLM = 25;
+  RCC_OscInitStruct.PLL.PLLN = 336;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+  RCC_OscInitStruct.PLL.PLLQ = 7;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -162,12 +216,12 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }
