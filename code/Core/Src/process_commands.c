@@ -44,6 +44,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
 // Commands 
 // CMD_INIT     0x01
+// CMD_HELLO    0x0F0F
 // CMD_START    0x10
 // CMD_STOP     0x20
 // CMD_SET_RPM  0x30  // Set speed

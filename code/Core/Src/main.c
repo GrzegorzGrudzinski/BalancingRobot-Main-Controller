@@ -60,6 +60,7 @@ PID_t pid;
 
 // ESC data
 FeedbackPacket_t esc1_data = {0}; // Data from ESC1
+
 uint8_t rx1RawBuffer[sizeof(FeedbackPacket_t)]; // Raw buffer for receiving data
 volatile uint8_t rx1_msg_recieved = 0; // message received flag
 
@@ -142,14 +143,26 @@ int main(void)
   float output = 0.0f;
   
   // 0. INIT
+  printf("Waiting for ESC connection...\r\n");
+  esc1_data.status = 0xFF; // Invalid initial state
+  while(esc1_data.status != ESC_HELLO) {
+    // Wait for ESC to power up
+    send_motor_command(&huart2, CMD_HELLO, 0);
+    HAL_Delay(100);  
+  } 
+  printf("ESC connected!\r\n");
+  
   uint32_t init_start_time = HAL_GetTick(); // Init timeout timer
   uint32_t init_debug_time = HAL_GetTick();
   while (startup_flag) {
+    // Wait for ESC connection
+
     // Ask for INIT every 100ms
     send_motor_command(&huart2, CMD_INIT, 0);
     HAL_Delay(100);
 
     if (esc1_data.status == IDLE) {
+      send_motor_command(&huart2, CMD_START, 0);
       startup_flag = 0; // Exit startup loop
     }
     else if (esc1_data.status == FAULT_OVER){
@@ -157,19 +170,19 @@ int main(void)
       send_motor_command(&huart2, CMD_CLR_FLT, 0);
       HAL_Delay(100);
     }
+    
+    // Debug info via USB
+    if (HAL_GetTick() - init_debug_time >= 500) 
+    {
+      init_debug_time = HAL_GetTick();
+      printf("STATE: %s | RPM: %.2f | CURR: %.2f\r\n", GetStateName(esc1_data.status), esc1_data.speed_rpm, esc1_data.current_Iq);
+    }
 
     // Timeout after 5s
     if (HAL_GetTick() - init_start_time > 5000) {
       error_flag = 1; // Set error flag
       startup_flag = 0; // Exit startup loop
       break;
-    }
-
-    // Debug info via USB
-    if (HAL_GetTick() - init_debug_time >= 500) 
-    {
-      init_debug_time = HAL_GetTick();
-      printf("STATE: %s | RPM: %.2f | CURR: %.2f\r\n", GetStateName(esc1_data.status), esc1_data.speed_rpm, esc1_data.current_Iq);
     }
   }
 
@@ -181,19 +194,17 @@ int main(void)
       HAL_Delay(1000);
     }
   }
+  printf("BALANCING ROBOT - initialization complete \r\n");
 
+  uint32_t last_loop_time = HAL_GetTick();
+  uint32_t last_debug_time = HAL_GetTick();
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
     
-
-    printf("BALANCING ROBOT - initialization complete \r\n");
-
     // Control loop
-    uint32_t last_loop_time = HAL_GetTick();
-    uint32_t last_debug_time = HAL_GetTick();
     if (HAL_GetTick() - last_loop_time >= 10) 
     {
       last_loop_time = HAL_GetTick();

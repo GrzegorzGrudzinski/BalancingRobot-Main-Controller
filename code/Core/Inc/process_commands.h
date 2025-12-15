@@ -3,7 +3,9 @@
 
 #include "main.h"
 
-#define CMD_INIT     0x01
+#define CMD_INIT     0x01 
+#define CMD_HELLO    0x0FA
+#define ESC_HELLO    0xAF
 #define CMD_START    0x10
 #define CMD_STOP     0x20
 #define CMD_SET_RPM  0x30       // Set speed
