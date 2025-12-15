@@ -63,7 +63,9 @@ FeedbackPacket_t esc1_data = {0}; // Data from ESC1
 uint8_t rx1RawBuffer[sizeof(FeedbackPacket_t)]; // Raw buffer for receiving data
 volatile uint8_t rx1_msg_recieved = 0; // message received flag
 
-uint8_t error_flag = 0; // Error flag
+
+volatile uint8_t error_flag = 0; // Error flag
+volatile uint8_t startup_flag = 1; // Startup flag - codition to run control loop
 
 /* USER CODE END PV */
 
@@ -83,39 +85,6 @@ int _write(int file, char *ptr, int len) {
     
 }
 
-
-// Interrupt callback for UART reception
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-  if (huart->Instance == USART2)
-  {
-    static uint8_t rxState_flag = 0; // 0 -looking for start byte, 1 - receiving data
-
-    if (rxState_flag == 0) {
-      if (rx1RawBuffer[0] == 0xBB) { // Start byte found
-        rxState_flag = 1;
-
-        HAL_UART_Receive_IT(&huart2, &rx1RawBuffer[1], sizeof(FeedbackPacket_t) - 1); // Receive rest of the packet
-      }
-    }
-    else if (rxState_flag == 1) {
-      // Full packet received
-      FeedbackPacket_t* recieved_pkt = (FeedbackPacket_t*)rx1RawBuffer;
-      
-      //calcuate checksum and verify
-      uint8_t checksum = calculate_checksum(rx1RawBuffer, sizeof(FeedbackPacket_t));
-      if (recieved_pkt->checksum == checksum) {
-        // Valid packet
-        esc1_data = *recieved_pkt;
-        rx1_msg_recieved = 1;
-      }
-
-      rxState_flag = 0; // Reset state to look for next packet
-      // Restart reception for next packet
-      HAL_UART_Receive_IT(&huart2, rx1RawBuffer, 1);
-    } 
-  } // if USART2
-}
 
 
 
@@ -173,7 +142,38 @@ int main(void)
   float output = 0.0f;
   
   // 0. INIT
+  uint32_t init_start_time = HAL_GetTick(); // Init timeout timer
 
+  while (startup_flag) {
+    // Ask for INIT every 100ms
+    send_motor_command(&huart2, CMD_INIT, 0);
+    HAL_Delay(100);
+
+    if (esc1_data.status == IDLE) {
+      startup_flag = 0; // Exit startup loop
+    }
+    else if (esc1_data.status == FAULT_OVER){
+      // Handle fault state
+      send_motor_command(&huart2, CMD_CLR_FLT, 0);
+      HAL_Delay(100);
+    }
+
+    // Timeout after 5s
+    if (HAL_GetTick() - init_start_time > 5000) {
+      error_flag = 1; // Set error flag
+      startup_flag = 0; // Exit startup loop
+      break;
+    }
+  }
+
+  // INIT ERROR HANDLING
+  if (error_flag) {
+    while(1) {
+      // Halt here
+      printf("ERROR: Failed to initialize ESC! Check connections and power supply.\r\n");
+      HAL_Delay(1000);
+    }
+  }
 
   while (1)
   {
@@ -184,7 +184,7 @@ int main(void)
 
     printf("BALANCING ROBOT - initialization complete \r\n");
 
-    // 1. Control loop
+    // Control loop
     uint32_t last_loop_time = HAL_GetTick();
     uint32_t last_debug_time = HAL_GetTick();
     if (HAL_GetTick() - last_loop_time >= 10) 
@@ -211,10 +211,19 @@ int main(void)
           // Handle error
 
           // send_motor_command_dma(&huart1, CMD_STOP, 0);
-          send_motor_command_dma(&huart2, CMD_STOP, 0);
+          send_motor_command(&huart2, CMD_STOP, 0);
 
           error_flag = 1; // Set error flag
         }
+        if (esc1_data.status == FAULT_NOW) {
+          // Handle fault state
+          
+          // send_motor_command_dma(&huart1, CMD_STOP, 0);
+          send_motor_command(&huart2, CMD_STOP, 0);
+
+          error_flag = 1; // Set error flag
+        }
+
       rx1_msg_recieved = 0;
     }
 
@@ -228,7 +237,7 @@ int main(void)
         printf("ERROR: Out of range values from ESC! Stopping motors.\r\n");
       }
 
-      printf("STATE: %d | RPM: %.2f | CURR: %.2f | PID Output: %.2f\r\n", esc1_data.status, esc1_data.speed_rpm, esc1_data.current_Iq, output);
+      printf("STATE: %s | RPM: %.2f | CURR: %.2f | PID Output: %.2f\r\n", GetStateName(esc1_data.status), esc1_data.speed_rpm, esc1_data.current_Iq, output);
     }
 
     /* USER CODE END WHILE */
@@ -294,7 +303,7 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
+  __disable_irq(); 
   while (1)
   {
   }

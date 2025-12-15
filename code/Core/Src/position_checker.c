@@ -6,6 +6,10 @@
 # include "main.h"
 # include "position_checker.h"
 
+uint32_t _getTime() {
+    return HAL_GetTick(); // +(uint32_t)(uwTickFreq);
+}
+
 void pidInit (PID_t *pid, float Kp, float Ki,float Kd, uint32_t timeSample)
 {
     pid->Kp = Kp;
@@ -26,10 +30,6 @@ void pidInit (PID_t *pid, float Kp, float Ki,float Kd, uint32_t timeSample)
     pid->output = 0.0f;
 }
 
-
-uint32_t _getTime() {
-    return HAL_GetTick(); // +(uint32_t)(uwTickFreq);
-}
 
 // run_pid
 float run_pid(PID_t *pid, float position, float setPoint) {

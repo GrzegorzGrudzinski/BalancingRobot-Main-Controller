@@ -75,8 +75,8 @@ Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/usbd_cdc.c \
 Core/Src/rtc.c \
 Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rtc.c \
 Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rtc_ex.c \
-Core/Src/process_commands.c \ # NEW # 
-Core/Src/position_checker.c   # NEW #	
+Core/Src/process_commands.c \
+Core/Src/position_checker.c
 
 # ASM sources
 ASM_SOURCES =  \
