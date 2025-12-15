@@ -143,7 +143,7 @@ int main(void)
   
   // 0. INIT
   uint32_t init_start_time = HAL_GetTick(); // Init timeout timer
-
+  uint32_t init_debug_time = HAL_GetTick();
   while (startup_flag) {
     // Ask for INIT every 100ms
     send_motor_command(&huart2, CMD_INIT, 0);
@@ -163,6 +163,13 @@ int main(void)
       error_flag = 1; // Set error flag
       startup_flag = 0; // Exit startup loop
       break;
+    }
+
+    // Debug info via USB
+    if (HAL_GetTick() - init_debug_time >= 500) 
+    {
+      init_debug_time = HAL_GetTick();
+      printf("STATE: %s | RPM: %.2f | CURR: %.2f\r\n", GetStateName(esc1_data.status), esc1_data.speed_rpm, esc1_data.current_Iq);
     }
   }
 
