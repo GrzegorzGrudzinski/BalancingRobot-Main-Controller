@@ -41,12 +41,8 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
-typedef struct {
-  uint8_t rx_byte;           
-  uint8_t rx_buffer[100];     
-  volatile uint8_t rx_index;      
-  volatile uint8_t msg_received; // Flaga: 1 = mamy pełną wiadomość
-} RX_Struct;
+
+
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/

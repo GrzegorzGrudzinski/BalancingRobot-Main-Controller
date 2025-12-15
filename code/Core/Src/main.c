@@ -29,7 +29,7 @@
 #include <stdio.h>
 #include "usbd_cdc_if.h"
 #include "process_commands.h"
-// #include "position_checker.c"
+#include "position_checker.h"
 
 /* USER CODE END Includes */
 
@@ -54,9 +54,16 @@
 /* USER CODE BEGIN PV */
 
 // MPU6050_t MPU6050;
-// PID_t pid;
+PID_t pid;
 
-RX_Struct rx_struct = {0};
+
+
+// ESC data
+FeedbackPacket_t esc1_data = {0}; // Data from ESC1
+uint8_t rx1RawBuffer[sizeof(FeedbackPacket_t)]; // Raw buffer for receiving data
+volatile uint8_t rx1_msg_recieved = 0; // message received flag
+
+uint8_t error_flag = 0; // Error flag
 
 /* USER CODE END PV */
 
@@ -73,30 +80,44 @@ void SystemClock_Config(void);
 int _write(int file, char *ptr, int len) {
     CDC_Transmit_FS((uint8_t*) ptr, len);
     return len;
+    
 }
 
 
-// Callback przerwania - wywołuje się po odebraniu każdego znaku
+// Interrupt callback for UART reception
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
   if (huart->Instance == USART2)
   {
-    // 1. Dodaj znak do bufora, jeśli jest miejsce
-    if (rx_struct.rx_index < sizeof(rx_struct.rx_buffer) - 1) {
-        rx_struct.rx_buffer[rx_struct.rx_index++] = rx_struct.rx_byte;
-    }
+    static uint8_t rxState_flag = 0; // 0 -looking for start byte, 1 - receiving data
 
-    // 2. Sprawdź czy to koniec linii '\n'
-    if (rx_struct.rx_byte == '\n') {
-       rx_struct.rx_buffer[rx_struct.rx_index] = '\0'; // Dodaj zero na koniec stringa
-       rx_struct.msg_received = 1;              // Ustaw flagę dla pętli głównej
-       // rx_struct.rx_index = 0; // Reset zrobimy w main po odczytaniu
+    if (rxState_flag == 0) {
+      if (rx1RawBuffer[0] == 0xBB) { // Start byte found
+        rxState_flag = 1;
+
+        HAL_UART_Receive_IT(&huart2, &rx1RawBuffer[1], sizeof(FeedbackPacket_t) - 1); // Receive rest of the packet
+      }
     }
-    
-    // 3. Nasłuchuj kolejnego znaku
-    HAL_UART_Receive_IT(&huart2, &rx_struct.rx_byte, 1);
-  }
+    else if (rxState_flag == 1) {
+      // Full packet received
+      FeedbackPacket_t* recieved_pkt = (FeedbackPacket_t*)rx1RawBuffer;
+      
+      //calcuate checksum and verify
+      uint8_t checksum = calculate_checksum(rx1RawBuffer, sizeof(FeedbackPacket_t));
+      if (recieved_pkt->checksum == checksum) {
+        // Valid packet
+        esc1_data = *recieved_pkt;
+        rx1_msg_recieved = 1;
+      }
+
+      rxState_flag = 0; // Reset state to look for next packet
+      // Restart reception for next packet
+      HAL_UART_Receive_IT(&huart2, rx1RawBuffer, 1);
+    } 
+  } // if USART2
 }
+
+
 
 /* USER CODE END 0 */
 
@@ -106,7 +127,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   */
 int main(void)
 {
-
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -136,47 +156,82 @@ int main(void)
   MX_USB_DEVICE_Init();
   MX_RTC_Init();
   /* USER CODE BEGIN 2 */
-  // while (MPU6050_Init(&hi2c1) == 1);
-  // pidInit(&pid, 2, 0.2, 0.2, 1000);
-  HAL_Delay(500);
-  printf("STM32F401 UART Master Start!\r\n");
 
-  HAL_UART_Receive_IT(&huart2, &rx_struct.rx_byte, 1);
+  printf("BALANCING ROBOT - starting initialization \r\n");
+  
+  // while (MPU6050_Init(&hi2c1) == 1);
+  pidInit(&pid, 2, 0.2, 0.2, 100); // Kp, Ki, Kd, timeSample in ms
+
+  HAL_Delay(500);
+
+  HAL_UART_Receive_IT(&huart2, rx1RawBuffer, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  // float desired_angle = 90.0f;
-  // float output = 0.0f;
+  const float desired_angle = 90.0f;
+  float output = 0.0f;
+  
+  // 0. INIT
 
-  const char *data = "Hello from MCU!\r\n";
 
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    
 
-    // 1. Read MPU6050 data
-    // MPU6050_Read_All(&hi2c1, &MPU6050);
-    // float angle = MPU6050.KalmanAngleX;
+    printf("BALANCING ROBOT - initialization complete \r\n");
 
-    // 2. Compute PID
-    // output = run_pid(&pid, angle, desired_angle);
+    // 1. Control loop
+    uint32_t last_loop_time = HAL_GetTick();
+    uint32_t last_debug_time = HAL_GetTick();
+    if (HAL_GetTick() - last_loop_time >= 10) 
+    {
+      last_loop_time = HAL_GetTick();
 
-    // 3. Recieve data from ESCs
+      // 1. Read MPU6050 data
+      // MPU6050_Read_All(&hi2c1, &MPU6050);
+      // float angle = MPU6050.KalmanAngleX;
+      float angle = 0.05f; // TEMP
 
-    // 4. Send data to ESCs
-    // convert values to motor commands (angle -> linear vel)
+      // 2. Compute PID
+      output = run_pid(&pid, angle, desired_angle);      // convert values to motor commands (angle -> linear vel) 
+      
+      // 3. Send data to ESCs
+      // send_motor_command(&huart2, CMD_SET_RPM, output);
+    }
+    
+    // 4. Process data from ESCs
+    if (rx1_msg_recieved) {
+      //Check for errors from ESC
+      if (esc1_data.speed_rpm > 5000.0f || esc1_data.speed_rpm < -5000.0f || 
+        esc1_data.current_Iq > 10.0f || esc1_data.current_Iq < -10.0f) {
+          // Handle error
 
-    // send pos to motors
+          // send_motor_command_dma(&huart1, CMD_STOP, 0);
+          send_motor_command_dma(&huart2, CMD_STOP, 0);
 
-    process_data(&rx_struct, data, strlen(data), &huart2);
+          error_flag = 1; // Set error flag
+        }
+      rx1_msg_recieved = 0;
+    }
 
-    // Obsługa USB i innych zadań w tle
+
+
+    // 5. Debug info via USB 
+    if (HAL_GetTick() - last_debug_time >= 200) 
+    {
+      last_debug_time = HAL_GetTick();
+      if (error_flag) {
+        printf("ERROR: Out of range values from ESC! Stopping motors.\r\n");
+      }
+
+      printf("STATE: %d | RPM: %.2f | CURR: %.2f | PID Output: %.2f\r\n", esc1_data.status, esc1_data.speed_rpm, esc1_data.current_Iq, output);
+    }
+
     /* USER CODE END WHILE */
-
-    HAL_Delay(1000); // Wyślij ponownie za sekundę
   }
   /* USER CODE END 3 */
 }
