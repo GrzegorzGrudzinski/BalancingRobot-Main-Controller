@@ -1,9 +1,8 @@
 {
   "configurations": [
     {
-      "name": "windows-gcc-x64",
+      "name": "Linux",
       "includePath": [
-        "${workspaceFolder}/**",
         "${workspaceRoot}/code",
         "${workspaceRoot}/code/Core/Inc",
         "${workspaceRoot}/code/Drivers/STM32F4xx_HAL_Driver/Inc",
@@ -44,8 +43,7 @@
         "limitSymbolsToIncludedHeaders": true,
         "databaseFilename": "${workspaceRoot}/.vscode/browse.vc.db"
       },
-      "intelliSenseMode": "windows-gcc-x64",
-      "compilerPath": "C:/msys64/ucrt64/bin/gcc.exe"
+      "intelliSenseMode": "linux-gcc-arm"
     },
     {
       "name": "Windows",

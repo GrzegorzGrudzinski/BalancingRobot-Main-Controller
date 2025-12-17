@@ -25,7 +25,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     else if (rxState_flag == 1) {
       // Full packet received
       FeedbackPacket_t* recieved_pkt = (FeedbackPacket_t*)rx1RawBuffer;
-      
+
       //calcuate checksum and verify
       uint8_t checksum = calculate_checksum(rx1RawBuffer, sizeof(FeedbackPacket_t));
       if (recieved_pkt->checksum == checksum) {

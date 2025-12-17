@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "dma.h"
 #include "i2c.h"
 #include "rtc.h"
 #include "usart.h"
@@ -97,6 +98,7 @@ int _write(int file, char *ptr, int len) {
   */
 int main(void)
 {
+
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -119,6 +121,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_I2C1_Init();
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
@@ -143,6 +146,8 @@ int main(void)
   float output = 0.0f;
   
   // 0. INIT
+
+  // Wait for ESC connection
   printf("Waiting for ESC connection...\r\n");
   esc1_data.status = 0xFF; // Invalid initial state
   while(esc1_data.status != ESC_HELLO) {
@@ -152,6 +157,7 @@ int main(void)
   } 
   printf("ESC connected!\r\n");
   
+  // Check for IDLE state
   uint32_t init_start_time = HAL_GetTick(); // Init timeout timer
   uint32_t init_debug_time = HAL_GetTick();
   while (startup_flag) {
@@ -165,7 +171,7 @@ int main(void)
       send_motor_command(&huart2, CMD_START, 0);
       startup_flag = 0; // Exit startup loop
     }
-    else if (esc1_data.status == FAULT_OVER){
+    else if (esc1_data.status == FAULT_OVER) {
       // Handle fault state
       send_motor_command(&huart2, CMD_CLR_FLT, 0);
       HAL_Delay(100);
@@ -175,7 +181,8 @@ int main(void)
     if (HAL_GetTick() - init_debug_time >= 500) 
     {
       init_debug_time = HAL_GetTick();
-      printf("STATE: %s | RPM: %.2f | CURR: %.2f\r\n", GetStateName(esc1_data.status), esc1_data.speed_rpm, esc1_data.current_Iq);
+      printf("STATE: %s | RPM: %.2f | CURR q: %.2f | CURR d: %.2f\r\n", 
+             GetStateName(esc1_data.status), esc1_data.speed_rpm, esc1_data.current_Iq, esc1_data.current_Id);
     }
 
     // Timeout after 5s
@@ -255,7 +262,7 @@ int main(void)
         printf("ERROR: Out of range values from ESC! Stopping motors.\r\n");
       }
 
-      printf("STATE: %s | RPM: %.2f | CURR: %.2f | PID Output: %.2f\r\n", GetStateName(esc1_data.status), esc1_data.speed_rpm, esc1_data.current_Iq, output);
+      printf("STATE: %s | RPM: %.2f | CURR q: %.2f | CURR d: %.2f | PID Output: %.2f\r\n", GetStateName(esc1_data.status), esc1_data.speed_rpm, esc1_data.current_Iq, esc1_data.current_Id, output);
     }
 
     /* USER CODE END WHILE */

@@ -4,7 +4,7 @@
 #include "main.h"
 
 #define CMD_INIT     0x01 
-#define CMD_HELLO    0x0FA
+#define CMD_HELLO    0xFA
 #define ESC_HELLO    0xAF
 #define CMD_START    0x10
 #define CMD_STOP     0x20
@@ -22,13 +22,14 @@ typedef struct __attribute__((packed)) {
 } MotorPacket_t;
 
 
-// Feedback frame (1 + 1 + 4 + 4 + 1 = 11 bytes)
+// Feedback frame (1 + 4 + 4 + 4 + 4 + 1 = 18 bytes)
 typedef struct __attribute__((packed)) {
-    uint8_t startByte;    // 0xBB
-    uint8_t status;       //
+    uint8_t   startByte;    // 0xBB
+    uint32_t  status;       //
     float   speed_rpm;    // 
     float   current_Iq;   // 
-    uint8_t checksum;     // XOR
+    float   current_Id;   // 
+    uint8_t   checksum;     // XOR
 } FeedbackPacket_t;
 
 // Motor States from Motor Control Library
