@@ -133,7 +133,7 @@ int main(void)
   printf("BALANCING ROBOT - starting initialization \r\n");
   
   // while (MPU6050_Init(&hi2c1) == 1);
-  pidInit(&pid, 2, 0.2, 0.2, 100); // Kp, Ki, Kd, timeSample in ms
+  pidInit(&pid, 2, 0.2, 0.2, 10); // Kp, Ki, Kd, timeSample in ms
 
   HAL_Delay(500);
 
@@ -147,11 +147,14 @@ int main(void)
   
   // 0. INIT
 
+  /*******************************
+      ESC INITIALIZATION CODE 
+  *******************************/
+
   // Wait for ESC connection
   printf("Waiting for ESC connection...\r\n");
   esc1_data.status = 0xFF; // Invalid initial state
   while(esc1_data.status != ESC_HELLO) {
-    // Wait for ESC to power up
     send_motor_command(&huart2, CMD_HELLO, 0);
     HAL_Delay(100);  
   } 
@@ -161,14 +164,13 @@ int main(void)
   uint32_t init_start_time = HAL_GetTick(); // Init timeout timer
   uint32_t init_debug_time = HAL_GetTick();
   while (startup_flag) {
-    // Wait for ESC connection
-
     // Ask for INIT every 100ms
     send_motor_command(&huart2, CMD_INIT, 0);
     HAL_Delay(100);
 
     if (esc1_data.status == IDLE) {
       send_motor_command(&huart2, CMD_START, 0);
+      HAL_Delay(200);
       startup_flag = 0; // Exit startup loop
     }
     else if (esc1_data.status == FAULT_OVER) {
@@ -203,6 +205,10 @@ int main(void)
   }
   printf("BALANCING ROBOT - initialization complete \r\n");
 
+  /*******************************
+            MAIN LOOP
+  *******************************/
+
   uint32_t last_loop_time = HAL_GetTick();
   uint32_t last_debug_time = HAL_GetTick();
   while (1)
@@ -219,36 +225,84 @@ int main(void)
       // 1. Read MPU6050 data
       // MPU6050_Read_All(&hi2c1, &MPU6050);
       // float angle = MPU6050.KalmanAngleX;
-      float angle = 0.05f; // TEMP
+      float angle = 90.05f; // TEMP
 
       // 2. Compute PID
       output = run_pid(&pid, angle, desired_angle);      // convert values to motor commands (angle -> linear vel) 
       
       // 3. Send data to ESCs
-      // send_motor_command(&huart2, CMD_SET_RPM, output);
+      if (esc1_data.status == RUN) {
+        send_motor_command(&huart2, CMD_SET_RPM, 700.0f);
+      }
     }
     
     // 4. Process data from ESCs
     if (rx1_msg_recieved) {
       //Check for errors from ESC
-      if (esc1_data.speed_rpm > 5000.0f || esc1_data.speed_rpm < -5000.0f || 
-        esc1_data.current_Iq > 10.0f || esc1_data.current_Iq < -10.0f) {
+      if (esc1_data.speed_rpm > 4000.0f || esc1_data.speed_rpm < -4000.0f || 
+        esc1_data.current_Iq > 30.0f || esc1_data.current_Iq < -30.0f) {
           // Handle error
 
           // send_motor_command_dma(&huart1, CMD_STOP, 0);
           send_motor_command(&huart2, CMD_STOP, 0);
-
           error_flag = 1; // Set error flag
-        }
-        if (esc1_data.status == FAULT_NOW) {
+      }
+      switch (esc1_data.status) {
+        case FAULT_NOW:
           // Handle fault state
-          
-          // send_motor_command_dma(&huart1, CMD_STOP, 0);
-          send_motor_command(&huart2, CMD_STOP, 0);
-
           error_flag = 1; // Set error flag
-        }
+          break;
+        case FAULT_OVER:
+          // Handle fault state
+          send_motor_command(&huart2, CMD_CLR_FLT, 0);
+          break;
+        case IDLE:
+          // Restart motor if in IDLE
+          send_motor_command(&huart2, CMD_START, 0);
+          break;
 
+        // case RUN:
+        //   // Normal operation
+        //   break;
+        // case START:
+        //   // Motor is starting
+        //   break;
+        // case STOP:
+        //   // Motor is stopping
+        //   break;
+
+        case OFFSET_CALIB:
+          // Calibration state
+          HAL_Delay(200); // Wait for calibration
+          break;
+        case CHARGE_BOOT_CAP:
+          // Charging capacitors
+          HAL_Delay(200); // Wait for charging
+          break;
+        case ALIGNMENT:
+          // Alignment state
+          break;
+        case SWITCH_OVER:
+          // Switching from open loop to closed loop
+          break;
+        case ICLWAIT:
+          // Waiting for ICL to clear
+          break;
+        case WAIT_STOP_MOTOR:
+          // Waiting for motor to stop
+          break;
+        case OTF_DETECTION:
+          // On-the-fly detection
+          break;
+        case OTF_BRAKE:
+          // On-the-fly braking
+          break;
+
+        default:
+          break;
+      }
+
+        
       rx1_msg_recieved = 0;
     }
 

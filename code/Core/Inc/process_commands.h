@@ -22,13 +22,13 @@ typedef struct __attribute__((packed)) {
 } MotorPacket_t;
 
 
-// Feedback frame (1 + 4 + 4 + 4 + 4 + 1 = 18 bytes)
+// Feedback frame (1 + 1 + 4 + 4 + 4 + 1 = 15 bytes)
 typedef struct __attribute__((packed)) {
     uint8_t   startByte;    // 0xBB
-    uint32_t  status;       //
-    float   speed_rpm;    // 
-    float   current_Iq;   // 
-    float   current_Id;   // 
+    uint8_t   status;       //
+    float     speed_rpm;    // 
+    float     current_Iq;   // 
+    float     current_Id;   // 
     uint8_t   checksum;     // XOR
 } FeedbackPacket_t;
 
