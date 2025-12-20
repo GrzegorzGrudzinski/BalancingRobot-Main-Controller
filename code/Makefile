@@ -76,7 +76,8 @@ Core/Src/rtc.c \
 Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rtc.c \
 Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rtc_ex.c \
 Core/Src/process_commands.c \
-Core/Src/position_checker.c \
+Core/Src/pid.c \
+Core/Src/mpu6050.c \
 Core/Src/dma.c
 
 # ASM sources
