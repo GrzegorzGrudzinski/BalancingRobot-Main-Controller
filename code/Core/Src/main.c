@@ -28,9 +28,11 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include <math.h>
 #include "usbd_cdc_if.h"
+#include "mpu6050.h"
 #include "process_commands.h"
-#include "position_checker.h"
+#include "pid.h"
 
 /* USER CODE END Includes */
 
@@ -57,7 +59,7 @@
 
 /* USER CODE BEGIN PV */
 
-// MPU6050_t MPU6050;
+MPU6050_t MPU6050;
 PID_t pid;
 
 
@@ -211,8 +213,41 @@ int main(void)
 
   printf("BALANCING ROBOT - starting initialization \r\n");
   
-  // while (MPU6050_Init(&hi2c1) == 1);
-  pidInit(&pid, 2, 0.2, 0.2, 10); // Kp, Ki, Kd, timeSample in ms
+  uint32_t mpu_init_time = HAL_GetTick(); // Init timeout timer
+  while (MPU6050_Init(&hi2c2) == 1) {
+    
+    //   // Timeout after 5s
+    if (HAL_GetTick() - mpu_init_time > 1000) {
+      printf("ERROR: Failed to initialize MPU6050! Check connections.\r\n");
+      mpu_init_time = HAL_GetTick(); // Reset timer
+    }
+  }
+  printf("MPU - initialization complete \r\n");
+
+  printf("Calibrating PID offset...\r\n");
+  
+  pidInit(&pid, 10, 0, 0.5, 10); // Kp, Ki, Kd, timeSample in ms
+  // Calibrate offset
+  float offset = 0.0f;
+  uint32_t pid_calib_start_time = HAL_GetTick();
+  uint32_t pid_calib_measure_time = HAL_GetTick();
+  float pid_offset_sum = 0.0f;
+  float pid_offset_mean = 0.0f;
+  uint32_t pid_calib_samples = 0;
+  while (HAL_GetTick() - pid_calib_start_time < 2000) {
+    if (HAL_GetTick() - pid_calib_measure_time >= 10) 
+    {
+      pid_calib_measure_time = HAL_GetTick();
+      MPU6050_Read_All(&hi2c2, &MPU6050);
+      pid_offset_sum += MPU6050.KalmanAngleX;
+      pid_calib_samples++;
+    }
+    HAL_Delay(1);
+  }
+  pid_offset_mean = pid_offset_sum / (float)pid_calib_samples;
+  offset = pid_offset_mean;
+
+  printf("Offset calibration complete\r\n");
 
   HAL_Delay(500);
 
@@ -222,15 +257,12 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  const float desired_angle = 90.0f;
-  float output = 0.0f;
   
   // 0. INIT
 
   /*******************************
       ESC INITIALIZATION CODE 
   *******************************/
-
   // Wait for ESC connection
   printf("Waiting for ESC connection...\r\n");
   esc1_data.status = 0xFF; // Invalid initial state
@@ -323,11 +355,15 @@ int main(void)
       HAL_Delay(1000);
     }
   }
+  
   printf("BALANCING ROBOT - initialization complete \r\n");
 
   /*******************************
             MAIN LOOP
   *******************************/
+  float desired_angle = 00.0f;
+  float angle = 0.0f;
+  float output = 0.0f;
 
   uint32_t last_loop_time = HAL_GetTick();
   uint32_t last_debug_time = HAL_GetTick();
@@ -343,10 +379,12 @@ int main(void)
       last_loop_time = HAL_GetTick();
 
       // 1. Read MPU6050 data
-      // MPU6050_Read_All(&hi2c1, &MPU6050);
-      // float angle = MPU6050.KalmanAngleX;
-      float angle = 90.05f; // TEMP
-
+      MPU6050_Read_All(&hi2c2, &MPU6050);
+      angle = MPU6050.KalmanAngleX;
+      angle -= offset;
+      if (fabsf(angle) <= 0.5) {
+        angle = 0;
+      }
       // 2. Compute PID
       output = run_pid(&pid, angle, desired_angle);      // convert values to motor commands (angle -> linear vel) 
       
@@ -503,8 +541,10 @@ int main(void)
         printf("ERROR: Out of range values from ESC! Stopping motors.\r\n");
       }
 
-      printf("MOTOR 1: STATE: %s | RPM: %.2f | CURR q: %.2f | CURR d: %.2f | PID Output: %.2f\r\n", GetStateName(esc1_data.status), esc1_data.speed_rpm, esc1_data.current_Iq, esc1_data.current_Id, output);
-      printf("MOTOR 2: STATE: %s | RPM: %.2f | CURR q: %.2f | CURR d: %.2f | PID Output: %.2f\r\n", GetStateName(esc2_data.status), esc2_data.speed_rpm, esc2_data.current_Iq, esc2_data.current_Id, output);
+      printf("MOTOR 1: STATE: %s | RPM: %.2f | CURR q: %.2f | CURR d: %.2f \r\n", GetStateName(esc1_data.status), esc1_data.speed_rpm, esc1_data.current_Iq, esc1_data.current_Id);
+      printf("MOTOR 2: STATE: %s | RPM: %.2f | CURR q: %.2f | CURR d: %.2f \r\n", GetStateName(esc2_data.status), esc2_data.speed_rpm, esc2_data.current_Iq, esc2_data.current_Id);
+      
+      printf("ANGLE: %.2f | PID: %.2f \r\n\n", angle, output);
     }
 
     /* USER CODE END WHILE */

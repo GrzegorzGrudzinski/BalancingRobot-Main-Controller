@@ -4,7 +4,9 @@
     3. correct yourself
 */
 # include "main.h"
-# include "position_checker.h"
+# include "pid.h"
+
+#define MAX_SPEED 2000.0f
 
 uint32_t _getTime() {
     return HAL_GetTick(); // +(uint32_t)(uwTickFreq);
@@ -45,8 +47,8 @@ float run_pid(PID_t *pid, float position, float setPoint) {
         
         pid->error_sum += pid->error*dt;
         pid->I = pid->error_sum* pid->Ki; // TODO I max and min values
-        const float I_MAX = 180.0f;
-        const float I_MIN = -180.0f;
+        const float I_MAX = MAX_SPEED;
+        const float I_MIN = -MAX_SPEED;
         if (pid->I > I_MAX) pid->I = I_MAX;
         else if (pid->I < I_MIN) pid->I = I_MIN;
         
@@ -55,8 +57,8 @@ float run_pid(PID_t *pid, float position, float setPoint) {
 
         
         pid->output = pid->P+pid->I+pid->D;
-        const float OUT_MAX = 180.0f;
-        const float OUT_MIN = -180.0f;
+        const float OUT_MAX = MAX_SPEED;
+        const float OUT_MIN = -MAX_SPEED;
         if (pid->output > OUT_MAX) pid->output = OUT_MAX;
         else if (pid->output < OUT_MIN) pid->output = OUT_MIN;
 

@@ -6,6 +6,7 @@ Release/
 .mxproject
 
 browse.vc*
+*.code-workspace
 settings.json
 launch.json
 
