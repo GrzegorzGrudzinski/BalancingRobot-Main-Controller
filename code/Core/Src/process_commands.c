@@ -3,48 +3,18 @@
 #include <string.h>
 
 
-extern FeedbackPacket_t esc1_data; // Data from ESC1
-extern uint8_t rx1RawBuffer[sizeof(FeedbackPacket_t)]; // Raw buffer for receiving data
-extern volatile uint8_t rx1_msg_recieved; // message received flag
+// extern volatile FeedbackPacket_t esc1_data; // Data from ESC1
+// extern uint8_t rx1RawBuffer[sizeof(FeedbackPacket_t)]; // Raw buffer for receiving data
+// extern volatile uint8_t rx1_msg_recieved; // message received flag
 
-
-// Interrupt callback for UART reception
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-  if (huart->Instance == USART2)
-  {
-    static uint8_t rxState_flag = 0; // 0 -looking for start byte, 1 - receiving data
-
-    if (rxState_flag == 0) {
-      if (rx1RawBuffer[0] == 0xBB) { // Start byte found
-        rxState_flag = 1;
-
-        HAL_UART_Receive_IT(huart, &rx1RawBuffer[1], sizeof(FeedbackPacket_t) - 1); // Receive rest of the packet
-      }
-    }
-    else if (rxState_flag == 1) {
-      // Full packet received
-      FeedbackPacket_t* recieved_pkt = (FeedbackPacket_t*)rx1RawBuffer;
-
-      //calcuate checksum and verify
-      uint8_t checksum = calculate_checksum(rx1RawBuffer, sizeof(FeedbackPacket_t));
-      if (recieved_pkt->checksum == checksum) {
-        // Valid packet
-        esc1_data = *recieved_pkt;
-        rx1_msg_recieved = 1;
-      }
-
-      rxState_flag = 0; // Reset state to look for next packet
-      // Restart reception for next packet
-      HAL_UART_Receive_IT(huart, rx1RawBuffer, 1);
-    } 
-  } // if USART2
-}
+// extern volatile FeedbackPacket_t esc2_data; // Data from ESC1
+// extern uint8_t rx2RawBuffer[sizeof(FeedbackPacket_t)]; // Raw buffer for receiving data
+// extern volatile uint8_t rx2_msg_recieved; // message received flag
 
 
 // Commands 
 // CMD_INIT     0x01
-// CMD_HELLO    0x0F0F
+// CMD_HELLO    0xFA
 // CMD_START    0x10
 // CMD_STOP     0x20
 // CMD_SET_RPM  0x30  // Set speed
@@ -73,13 +43,23 @@ MotorPacket_t create_motor_packet(uint8_t command, float value) {
 }
 
 void send_motor_command(UART_HandleTypeDef *huart, uint8_t command, float value) {
-    static MotorPacket_t packet ;
-    packet = create_motor_packet(command, value);
-
+    static MotorPacket_t packet1;
+    static MotorPacket_t packet2;
+    MotorPacket_t* p_packet = NULL;
+    uint8_t uart_nr = 0;
+    if (huart->Instance == USART2) {
+        p_packet = &packet1;
+        uart_nr = 2;
+    } else {
+        p_packet = &packet2;
+        uart_nr = 1;
+    }
+    *p_packet = create_motor_packet(command, value);
+    
     // Only send if UART is ready
     uint8_t state = HAL_UART_GetState(huart);
     if ( (state == HAL_UART_STATE_READY || state == HAL_UART_STATE_BUSY_RX) ) {
-         HAL_UART_Transmit_DMA(huart, (uint8_t*)&packet, sizeof(MotorPacket_t));
+        HAL_UART_Transmit_DMA(huart, (uint8_t*)p_packet, sizeof(MotorPacket_t));
     }
 }
 

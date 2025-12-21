@@ -43,6 +43,9 @@
 /* USER CODE BEGIN PD */
 #define USB_BLOCK_SIZE 0x200	//512 bytes
 
+#define MOT1_UART huart2
+#define MOT2_UART huart1
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -60,14 +63,23 @@ PID_t pid;
 
 
 // ESC data
-FeedbackPacket_t esc1_data = {0}; // Data from ESC1
+
+// Motor 1
+volatile FeedbackPacket_t esc1_data = {0}; // Data from ESC1
 
 uint8_t rx1RawBuffer[sizeof(FeedbackPacket_t)]; // Raw buffer for receiving data
 volatile uint8_t rx1_msg_recieved = 0; // message received flag
 
+// Motor 2
+volatile FeedbackPacket_t esc2_data = {0}; // Data from ESC2
 
+uint8_t rx2RawBuffer[sizeof(FeedbackPacket_t)]; // Raw buffer for receiving data
+volatile uint8_t rx2_msg_recieved = 0; // message received flag
+
+// ESC communication flags
 volatile uint8_t error_flag = 0; // Error flag
-volatile uint8_t startup_flag = 1; // Startup flag - codition to run control loop
+volatile uint8_t startup1_flag = 1; // Startup flag - codition to run control loop (mot 1)
+volatile uint8_t startup2_flag = 1; // Startup flag - codition to run control loop (mot 2)
 
 /* USER CODE END PV */
 
@@ -87,6 +99,73 @@ int _write(int file, char *ptr, int len) {
     
 }
 
+
+// Interrupt callback for UART reception
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  if (huart->Instance == USART1)
+  {
+    static uint8_t rx2State_flag = 0; // 0 -looking for start byte, 1 - receiving data
+
+    if (rx2State_flag == 0) {
+      if (rx2RawBuffer[0] == 0xBB) { // Start byte found
+        rx2State_flag = 1;
+
+        HAL_UART_Receive_IT(huart, &rx2RawBuffer[1], sizeof(FeedbackPacket_t) - 1); // Receive rest of the packet
+      }
+      // else {
+      //   HAL_UART_Receive_IT(huart, rx2RawBuffer, 1);
+      // }
+    }
+    else if (rx2State_flag == 1) {
+      // Full packet received
+      FeedbackPacket_t* recieved_pkt = (FeedbackPacket_t*)rx2RawBuffer;
+
+      //calcuate checksum and verify
+      uint8_t checksum = calculate_checksum(rx2RawBuffer, sizeof(FeedbackPacket_t));
+      if (recieved_pkt->checksum == checksum) {
+        // Valid packet
+        esc2_data = *recieved_pkt;
+        rx2_msg_recieved = 1;
+      }
+
+      rx2State_flag = 0; // Reset state to look for next packet
+      // Restart reception for next packet
+      HAL_UART_Receive_IT(huart, rx2RawBuffer, 1);
+    } 
+  } // if USART1
+  else if (huart->Instance == USART2)
+  {
+    static uint8_t rx1State_flag = 0; // 0 -looking for start byte, 1 - receiving data
+
+    if (rx1State_flag == 0) {
+      if (rx1RawBuffer[0] == 0xBB) { // Start byte found
+        rx1State_flag = 1;
+
+        HAL_UART_Receive_IT(huart, &rx1RawBuffer[1], sizeof(FeedbackPacket_t) - 1); // Receive rest of the packet
+      }
+      // else {
+      //   HAL_UART_Receive_IT(huart, rx1RawBuffer, 1);
+      // }
+    }
+    else if (rx1State_flag == 1) {
+      // Full packet received
+      FeedbackPacket_t* recieved_pkt = (FeedbackPacket_t*)rx1RawBuffer;
+
+      //calcuate checksum and verify
+      uint8_t checksum = calculate_checksum(rx1RawBuffer, sizeof(FeedbackPacket_t));
+      if (recieved_pkt->checksum == checksum) {
+        // Valid packet
+        esc1_data = *recieved_pkt;
+        rx1_msg_recieved = 1;
+      }
+
+      rx1State_flag = 0; // Reset state to look for next packet
+      // Restart reception for next packet
+      HAL_UART_Receive_IT(huart, rx1RawBuffer, 1);
+    } 
+  } // if USART2
+}
 
 
 
@@ -137,7 +216,8 @@ int main(void)
 
   HAL_Delay(500);
 
-  HAL_UART_Receive_IT(&huart2, rx1RawBuffer, 1);
+  HAL_UART_Receive_IT(&MOT2_UART, rx2RawBuffer, 1);
+  HAL_UART_Receive_IT(&MOT1_UART, rx1RawBuffer, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -154,43 +234,83 @@ int main(void)
   // Wait for ESC connection
   printf("Waiting for ESC connection...\r\n");
   esc1_data.status = 0xFF; // Invalid initial state
+  esc2_data.status = 0xFF; // Invalid initial state
+ 
+  uint32_t esc_init_time = HAL_GetTick();
   while(esc1_data.status != ESC_HELLO) {
-    send_motor_command(&huart2, CMD_HELLO, 0);
-    HAL_Delay(100);  
+    if ((HAL_GetTick() - esc_init_time >= 100)) {
+      esc_init_time = HAL_GetTick(); // Reset licznika dla Mot1
+      send_motor_command(&MOT1_UART, CMD_HELLO, 0);
+    }
+  }
+  printf("ESC1 connected!\r\n");
+  HAL_Delay(10);
+
+  esc_init_time = HAL_GetTick();
+  while(esc2_data.status != ESC_HELLO) {
+    if ((HAL_GetTick() - esc_init_time >= 100)) {
+      esc_init_time = HAL_GetTick(); // Reset licznika dla Mot1
+      send_motor_command(&MOT2_UART, CMD_HELLO, 0);
+    }
   } 
-  printf("ESC connected!\r\n");
-  
+  printf("ESC2 connected!\r\n");
+    HAL_Delay(10);
+
   // Check for IDLE state
   uint32_t init_start_time = HAL_GetTick(); // Init timeout timer
   uint32_t init_debug_time = HAL_GetTick();
-  while (startup_flag) {
+  while (startup1_flag || startup2_flag) {
     // Ask for INIT every 100ms
-    send_motor_command(&huart2, CMD_INIT, 0);
-    HAL_Delay(100);
 
-    if (esc1_data.status == IDLE) {
-      send_motor_command(&huart2, CMD_START, 0);
-      HAL_Delay(200);
-      startup_flag = 0; // Exit startup loop
-    }
-    else if (esc1_data.status == FAULT_OVER) {
-      // Handle fault state
-      send_motor_command(&huart2, CMD_CLR_FLT, 0);
+    // Motor 1
+    if (startup1_flag) {
+      send_motor_command(&MOT1_UART, CMD_INIT, 0);
       HAL_Delay(100);
+  
+      if (esc1_data.status == IDLE) {
+        send_motor_command(&MOT1_UART, CMD_START, 0);
+        HAL_Delay(200);
+        startup1_flag = 0; // Exit startup loop
+      }
+      else if (esc1_data.status == FAULT_OVER) {
+        // Handle fault state
+        send_motor_command(&MOT1_UART, CMD_CLR_FLT, 0);
+        HAL_Delay(100);
+      }
+    }
+
+    // Motor 2
+    if (startup2_flag) {
+      send_motor_command(&MOT2_UART, CMD_INIT, 0);
+      HAL_Delay(100);
+  
+      if (esc2_data.status == IDLE) {
+        send_motor_command(&MOT2_UART, CMD_START, 0);
+        HAL_Delay(200);
+        startup2_flag = 0; // Exit startup loop
+      }
+      else if (esc2_data.status == FAULT_OVER) {
+        // Handle fault state
+        send_motor_command(&MOT2_UART, CMD_CLR_FLT, 0);
+        HAL_Delay(100);
+      }
     }
     
     // Debug info via USB
     if (HAL_GetTick() - init_debug_time >= 500) 
     {
       init_debug_time = HAL_GetTick();
-      printf("STATE: %s | RPM: %.2f | CURR q: %.2f | CURR d: %.2f\r\n", 
+      printf("MOTOR 1: STATE: %s | RPM: %.2f | CURR q: %.2f | CURR d: %.2f\r\n", 
              GetStateName(esc1_data.status), esc1_data.speed_rpm, esc1_data.current_Iq, esc1_data.current_Id);
+      printf("MOTOR 2: STATE: %s | RPM: %.2f | CURR q: %.2f | CURR d: %.2f\r\n\n", 
+              GetStateName(esc2_data.status), esc2_data.speed_rpm, esc2_data.current_Iq, esc2_data.current_Id);
     }
 
     // Timeout after 5s
     if (HAL_GetTick() - init_start_time > 5000) {
       error_flag = 1; // Set error flag
-      startup_flag = 0; // Exit startup loop
+      startup1_flag = 0; // Exit startup loop
+      startup2_flag = 0;
       break;
     }
   }
@@ -231,8 +351,9 @@ int main(void)
       output = run_pid(&pid, angle, desired_angle);      // convert values to motor commands (angle -> linear vel) 
       
       // 3. Send data to ESCs
-      if (esc1_data.status == RUN) {
-        send_motor_command(&huart2, CMD_SET_RPM, 700.0f);
+      if (esc1_data.status == RUN && esc2_data.status == RUN) {
+        send_motor_command(&MOT1_UART, CMD_SET_RPM, 700.0f);
+        send_motor_command(&MOT2_UART, CMD_SET_RPM, 700.0f);
       }
     }
     
@@ -240,11 +361,12 @@ int main(void)
     if (rx1_msg_recieved) {
       //Check for errors from ESC
       if (esc1_data.speed_rpm > 4000.0f || esc1_data.speed_rpm < -4000.0f || 
-        esc1_data.current_Iq > 30.0f || esc1_data.current_Iq < -30.0f) {
+        esc1_data.current_Iq > 30.0f || esc1_data.current_Iq < -30.0f)
+      {
           // Handle error
 
-          // send_motor_command_dma(&huart1, CMD_STOP, 0);
-          send_motor_command(&huart2, CMD_STOP, 0);
+          // send_motor_command_dma(&MOT2_UART, CMD_STOP, 0);
+          send_motor_command(&MOT1_UART, CMD_STOP, 0);
           error_flag = 1; // Set error flag
       }
       switch (esc1_data.status) {
@@ -254,11 +376,11 @@ int main(void)
           break;
         case FAULT_OVER:
           // Handle fault state
-          send_motor_command(&huart2, CMD_CLR_FLT, 0);
+          send_motor_command(&MOT1_UART, CMD_CLR_FLT, 0);
           break;
         case IDLE:
           // Restart motor if in IDLE
-          send_motor_command(&huart2, CMD_START, 0);
+          send_motor_command(&MOT1_UART, CMD_START, 0);
           break;
 
         // case RUN:
@@ -301,12 +423,77 @@ int main(void)
         default:
           break;
       }
-
-        
       rx1_msg_recieved = 0;
     }
 
+    if (rx2_msg_recieved) {
+      //Check for errors from ESC
+      if (esc2_data.speed_rpm > 4000.0f || esc2_data.speed_rpm < -4000.0f || 
+        esc2_data.current_Iq > 30.0f || esc2_data.current_Iq < -30.0f)
+      {
+          // Handle error
 
+          // send_motor_command_dma(&MOT2_UART, CMD_STOP, 0);
+          send_motor_command(&MOT2_UART, CMD_STOP, 0);
+          error_flag = 1; // Set error flag
+      }
+
+      switch (esc2_data.status) {
+        case FAULT_NOW:
+          // Handle fault state
+          error_flag = 1; // Set error flag
+          break;
+        case FAULT_OVER:
+          // Handle fault state
+          send_motor_command(&MOT2_UART, CMD_CLR_FLT, 0);
+          break;
+        case IDLE:
+          // Restart motor if in IDLE
+          send_motor_command(&MOT2_UART, CMD_START, 0);
+          break;
+
+        // case RUN:
+        //   // Normal operation
+        //   break;
+        // case START:
+        //   // Motor is starting
+        //   break;
+        // case STOP:
+        //   // Motor is stopping
+        //   break;
+
+        case OFFSET_CALIB:
+          // Calibration state
+          HAL_Delay(200); // Wait for calibration
+          break;
+        case CHARGE_BOOT_CAP:
+          // Charging capacitors
+          HAL_Delay(200); // Wait for charging
+          break;
+        case ALIGNMENT:
+          // Alignment state
+          break;
+        case SWITCH_OVER:
+          // Switching from open loop to closed loop
+          break;
+        case ICLWAIT:
+          // Waiting for ICL to clear
+          break;
+        case WAIT_STOP_MOTOR:
+          // Waiting for motor to stop
+          break;
+        case OTF_DETECTION:
+          // On-the-fly detection
+          break;
+        case OTF_BRAKE:
+          // On-the-fly braking
+          break;
+
+        default:
+          break;
+      }
+      rx2_msg_recieved = 0;
+    }
 
     // 5. Debug info via USB 
     if (HAL_GetTick() - last_debug_time >= 200) 
@@ -316,7 +503,8 @@ int main(void)
         printf("ERROR: Out of range values from ESC! Stopping motors.\r\n");
       }
 
-      printf("STATE: %s | RPM: %.2f | CURR q: %.2f | CURR d: %.2f | PID Output: %.2f\r\n", GetStateName(esc1_data.status), esc1_data.speed_rpm, esc1_data.current_Iq, esc1_data.current_Id, output);
+      printf("MOTOR 1: STATE: %s | RPM: %.2f | CURR q: %.2f | CURR d: %.2f | PID Output: %.2f\r\n", GetStateName(esc1_data.status), esc1_data.speed_rpm, esc1_data.current_Iq, esc1_data.current_Id, output);
+      printf("MOTOR 2: STATE: %s | RPM: %.2f | CURR q: %.2f | CURR d: %.2f | PID Output: %.2f\r\n", GetStateName(esc2_data.status), esc2_data.speed_rpm, esc2_data.current_Iq, esc2_data.current_Id, output);
     }
 
     /* USER CODE END WHILE */
@@ -371,6 +559,18 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+// void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+// {
+//     if (huart->Instance == USART1)
+//     {
+//         HAL_UART_Receive_IT(huart, rx2RawBuffer, 1);
+//     }
+//     else if (huart->Instance == USART2)
+//     {
+//         HAL_UART_Receive_IT(huart, rx1RawBuffer, 1);
+//     }
+// }
 
 /* USER CODE END 4 */
 
