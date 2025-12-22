@@ -48,6 +48,8 @@
 #define MOT1_UART huart2
 #define MOT2_UART huart1
 
+#define IMU_I2C   hi2c2
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -59,29 +61,26 @@
 
 /* USER CODE BEGIN PV */
 
+// =========================================================
+//                    GLOBAL VARIABLES
+// =========================================================
 MPU6050_t MPU6050;
 PID_t pid;
 
+volatile uint8_t error_flag = 0;    // Global error flag
 
-
-// ESC data
-
+// =========================
+//    ESC variables
+// =========================
 // Motor 1
 volatile FeedbackPacket_t esc1_data = {0}; // Data from ESC1
-
 uint8_t rx1RawBuffer[sizeof(FeedbackPacket_t)]; // Raw buffer for receiving data
 volatile uint8_t rx1_msg_recieved = 0; // message received flag
 
 // Motor 2
 volatile FeedbackPacket_t esc2_data = {0}; // Data from ESC2
-
 uint8_t rx2RawBuffer[sizeof(FeedbackPacket_t)]; // Raw buffer for receiving data
 volatile uint8_t rx2_msg_recieved = 0; // message received flag
-
-// ESC communication flags
-volatile uint8_t error_flag = 0; // Error flag
-volatile uint8_t startup1_flag = 1; // Startup flag - codition to run control loop (mot 1)
-volatile uint8_t startup2_flag = 1; // Startup flag - codition to run control loop (mot 2)
 
 /* USER CODE END PV */
 
@@ -98,9 +97,11 @@ void SystemClock_Config(void);
 int _write(int file, char *ptr, int len) {
     CDC_Transmit_FS((uint8_t*) ptr, len);
     return len;
-    
 }
 
+  // =========================================================
+  //                    UART RX CALLBACK
+  // =========================================================
 
 // Interrupt callback for UART reception
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
@@ -115,11 +116,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
         HAL_UART_Receive_IT(huart, &rx2RawBuffer[1], sizeof(FeedbackPacket_t) - 1); // Receive rest of the packet
       }
-      // else {
-      //   HAL_UART_Receive_IT(huart, rx2RawBuffer, 1);
-      // }
     }
-    else if (rx2State_flag == 1) {
+    else {
       // Full packet received
       FeedbackPacket_t* recieved_pkt = (FeedbackPacket_t*)rx2RawBuffer;
 
@@ -146,11 +144,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
         HAL_UART_Receive_IT(huart, &rx1RawBuffer[1], sizeof(FeedbackPacket_t) - 1); // Receive rest of the packet
       }
-      // else {
-      //   HAL_UART_Receive_IT(huart, rx1RawBuffer, 1);
-      // }
     }
-    else if (rx1State_flag == 1) {
+    else {
       // Full packet received
       FeedbackPacket_t* recieved_pkt = (FeedbackPacket_t*)rx1RawBuffer;
 
@@ -168,8 +163,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     } 
   } // if USART2
 }
-
-
 
 /* USER CODE END 0 */
 
@@ -211,20 +204,24 @@ int main(void)
   MX_RTC_Init();
   /* USER CODE BEGIN 2 */
 
+  // =========================================================
+  //             ANGLE MEASUREMENTS INITIALIZATION
+  // =========================================================
+
+  HAL_Delay(1000); // TEMP (for debugging)
+  
   printf("BALANCING ROBOT - starting initialization \r\n");
   
   uint32_t mpu_init_time = HAL_GetTick(); // Init timeout timer
-  while (MPU6050_Init(&hi2c2) == 1) {
-    
-    //   // Timeout after 5s
+  
+  while (MPU6050_Init(&IMU_I2C) == 1) {
     if (HAL_GetTick() - mpu_init_time > 1000) {
-      printf("ERROR: Failed to initialize MPU6050! Check connections.\r\n");
+      printf("IMU initialization\r\n");
       mpu_init_time = HAL_GetTick(); // Reset timer
     }
   }
-  printf("MPU - initialization complete \r\n");
+  printf("IMU - initialization complete \r\n");
 
-  printf("Calibrating PID offset...\r\n");
   
   pidInit(&pid, 10, 0, 0.5, 10); // Kp, Ki, Kd, timeSample in ms
   // Calibrate offset
@@ -235,10 +232,9 @@ int main(void)
   float pid_offset_mean = 0.0f;
   uint32_t pid_calib_samples = 0;
   while (HAL_GetTick() - pid_calib_start_time < 2000) {
-    if (HAL_GetTick() - pid_calib_measure_time >= 10) 
-    {
+    if (HAL_GetTick() - pid_calib_measure_time >= 10) {
       pid_calib_measure_time = HAL_GetTick();
-      MPU6050_Read_All(&hi2c2, &MPU6050);
+      MPU6050_Read_All(&IMU_I2C, &MPU6050);
       pid_offset_sum += MPU6050.KalmanAngleX;
       pid_calib_samples++;
     }
@@ -249,110 +245,139 @@ int main(void)
 
   printf("Offset calibration complete\r\n");
 
-  HAL_Delay(500);
+  HAL_Delay(50);
 
   HAL_UART_Receive_IT(&MOT2_UART, rx2RawBuffer, 1);
   HAL_UART_Receive_IT(&MOT1_UART, rx1RawBuffer, 1);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  
-  // 0. INIT
+    
+  // =========================================================
+  //                 ESC INITIALIZATION
+  // =========================================================
 
   /*******************************
-      ESC INITIALIZATION CODE 
+        CONNECT WITH BOTH ESCs
   *******************************/
   // Wait for ESC connection
   printf("Waiting for ESC connection...\r\n");
   esc1_data.status = 0xFF; // Invalid initial state
   esc2_data.status = 0xFF; // Invalid initial state
  
-  uint32_t esc_init_time = HAL_GetTick();
-  while(esc1_data.status != ESC_HELLO) {
-    if ((HAL_GetTick() - esc_init_time >= 100)) {
-      esc_init_time = HAL_GetTick(); // Reset licznika dla Mot1
-      send_motor_command(&MOT1_UART, CMD_HELLO, 0);
+  uint32_t esc_connection_timeout = HAL_GetTick();
+  uint32_t esc_hello_timer = HAL_GetTick();
+  uint8_t esc1_connected_flag = 0;
+  uint8_t esc2_connected_flag = 0;
+  
+  while ( ( !esc1_connected_flag || !esc2_connected_flag ) && (HAL_GetTick() - esc_connection_timeout < 5000 ) ) {
+    uint32_t now = HAL_GetTick();
+
+    // update flags if the response came
+    if (esc1_data.status == ESC_HELLO) esc1_connected_flag = 1;
+    if (esc2_data.status == ESC_HELLO) esc2_connected_flag = 1;
+        
+    if ((now - esc_hello_timer >= 200)) {
+      esc_hello_timer = HAL_GetTick(); // Reset licznika dla Mot1
+      
+      if (!esc1_connected_flag) send_motor_command(&MOT1_UART, CMD_HELLO, 0);
+      if (!esc2_connected_flag) send_motor_command(&MOT2_UART, CMD_HELLO, 0);
     }
   }
-  printf("ESC1 connected!\r\n");
-  HAL_Delay(10);
 
-  esc_init_time = HAL_GetTick();
-  while(esc2_data.status != ESC_HELLO) {
-    if ((HAL_GetTick() - esc_init_time >= 100)) {
-      esc_init_time = HAL_GetTick(); // Reset licznika dla Mot1
-      send_motor_command(&MOT2_UART, CMD_HELLO, 0);
-    }
-  } 
-  printf("ESC2 connected!\r\n");
-    HAL_Delay(10);
+  // Debug message after the connection
+  if (!esc1_connected_flag || !esc2_connected_flag) {
+      printf("ERROR: Connection Timeout! M1: %s, M2: %s\r\n", 
+              esc1_connected_flag ? "OK" : "ERROR", esc2_connected_flag ? "OK" : "ERROR");
+      error_flag = 1; // Zablokuj start
+  } else {
+      printf("Both ESCs connected!\r\n");
+  }
+  
+  HAL_Delay(50);
 
-  // Check for IDLE state
+  /********************************************
+   CHECK FOR IDLE STATE AND CHANGE TO RUN
+   *********************************************/
   uint32_t init_start_time = HAL_GetTick(); // Init timeout timer
+  uint32_t init_sent_timer = HAL_GetTick();
   uint32_t init_debug_time = HAL_GetTick();
-  while (startup1_flag || startup2_flag) {
-    // Ask for INIT every 100ms
-
-    // Motor 1
-    if (startup1_flag) {
-      send_motor_command(&MOT1_UART, CMD_INIT, 0);
-      HAL_Delay(100);
   
-      if (esc1_data.status == IDLE) {
-        send_motor_command(&MOT1_UART, CMD_START, 0);
-        HAL_Delay(200);
-        startup1_flag = 0; // Exit startup loop
-      }
-      else if (esc1_data.status == FAULT_OVER) {
-        // Handle fault state
-        send_motor_command(&MOT1_UART, CMD_CLR_FLT, 0);
-        HAL_Delay(100);
-      }
-    }
+  volatile uint8_t startup1_flag = 1; // Startup flag - codition to run control loop (mot 1)
+  volatile uint8_t startup2_flag = 1; // Startup flag - codition to run control loop (mot 2)
 
-    // Motor 2
-    if (startup2_flag) {
-      send_motor_command(&MOT2_UART, CMD_INIT, 0);
-      HAL_Delay(100);
-  
-      if (esc2_data.status == IDLE) {
-        send_motor_command(&MOT2_UART, CMD_START, 0);
-        HAL_Delay(200);
-        startup2_flag = 0; // Exit startup loop
-      }
-      else if (esc2_data.status == FAULT_OVER) {
-        // Handle fault state
-        send_motor_command(&MOT2_UART, CMD_CLR_FLT, 0);
-        HAL_Delay(100);
-      }
-    }
+  if (!error_flag) { 
+    printf("Starting the motors... \r\n");
     
-    // Debug info via USB
-    if (HAL_GetTick() - init_debug_time >= 500) 
-    {
-      init_debug_time = HAL_GetTick();
-      printf("MOTOR 1: STATE: %s | RPM: %.2f | CURR q: %.2f | CURR d: %.2f\r\n", 
-             GetStateName(esc1_data.status), esc1_data.speed_rpm, esc1_data.current_Iq, esc1_data.current_Id);
-      printf("MOTOR 2: STATE: %s | RPM: %.2f | CURR q: %.2f | CURR d: %.2f\r\n\n", 
-              GetStateName(esc2_data.status), esc2_data.speed_rpm, esc2_data.current_Iq, esc2_data.current_Id);
-    }
+    while (startup1_flag || startup2_flag) {
+      // Ask for INIT every 100ms
+      if (HAL_GetTick() - init_sent_timer >= 100) {
+        init_sent_timer = HAL_GetTick();
+        
+        // Motor 1
+        if (startup1_flag) {
+          // IDLE -> RUN
+          if (esc1_data.status == IDLE) {
+            send_motor_command(&MOT1_UART, CMD_START, 0);
+            startup1_flag = 0; // Exit startup loop
+          }
+          // clear if FAULT_OVER
+          else if (esc1_data.status == FAULT_OVER) {
+            // Handle fault state
+            send_motor_command(&MOT1_UART, CMD_CLR_FLT, 0);
+          }
+          else {
+            send_motor_command(&MOT1_UART, CMD_INIT, 0);
+          }
+        }
+    
+        // Motor 2
+        if (startup2_flag) {
+          // IDLE -> RUN
+          if (esc2_data.status == IDLE) {
+            send_motor_command(&MOT2_UART, CMD_START, 0);
+            startup2_flag = 0; // Exit startup loop
+          }
+          // clear if FAULT_OVER
+          else if (esc2_data.status == FAULT_OVER) {
+            // Handle fault state
+            send_motor_command(&MOT2_UART, CMD_CLR_FLT, 0);
+          }
+          else {
+            send_motor_command(&MOT2_UART, CMD_INIT, 0);
+          }
+        }        
+      } // end if (timer 100 ms)
 
-    // Timeout after 5s
-    if (HAL_GetTick() - init_start_time > 5000) {
-      error_flag = 1; // Set error flag
-      startup1_flag = 0; // Exit startup loop
-      startup2_flag = 0;
-      break;
-    }
-  }
-
-  // INIT ERROR HANDLING
-  if (error_flag) {
+      // Timeout after 5s
+      if (HAL_GetTick() - init_start_time > 5000) {
+        error_flag = 1; // Set error flag
+        startup1_flag = 0; // Exit startup loop
+        startup2_flag = 0;
+        break;
+      }
+      
+      // Debug info via USB
+      if (HAL_GetTick() - init_debug_time >= 500) 
+      {
+        init_debug_time = HAL_GetTick();
+        printf("MOTOR 1: STATE: %s | RPM: %.2f | CURR q: %.2f | CURR d: %.2f\r\n", 
+               GetStateName(esc1_data.status), esc1_data.speed_rpm, esc1_data.current_Iq, esc1_data.current_Id);
+        printf("MOTOR 2: STATE: %s | RPM: %.2f | CURR q: %.2f | CURR d: %.2f\r\n\n", 
+                GetStateName(esc2_data.status), esc2_data.speed_rpm, esc2_data.current_Iq, esc2_data.current_Id);
+      } 
+    } // end while (startup)
+  } // end if (error flag)
+  else 
+  { // INIT ERROR HANDLING
     while(1) {
       // Halt here
       printf("ERROR: Failed to initialize ESC! Check connections and power supply.\r\n");
+
       HAL_Delay(1000);
+      // TODO - Add blinking led at error
     }
   }
   
@@ -379,7 +404,7 @@ int main(void)
       last_loop_time = HAL_GetTick();
 
       // 1. Read MPU6050 data
-      MPU6050_Read_All(&hi2c2, &MPU6050);
+      MPU6050_Read_All(&IMU_I2C, &MPU6050);
       angle = MPU6050.KalmanAngleX;
       angle -= offset;
       if (fabsf(angle) <= 0.5) {
@@ -433,11 +458,11 @@ int main(void)
 
         case OFFSET_CALIB:
           // Calibration state
-          HAL_Delay(200); // Wait for calibration
+          // HAL_Delay(200); // Wait for calibration
           break;
         case CHARGE_BOOT_CAP:
           // Charging capacitors
-          HAL_Delay(200); // Wait for charging
+          // HAL_Delay(200); // Wait for charging
           break;
         case ALIGNMENT:
           // Alignment state
@@ -502,11 +527,11 @@ int main(void)
 
         case OFFSET_CALIB:
           // Calibration state
-          HAL_Delay(200); // Wait for calibration
+          // HAL_Delay(200); // Wait for calibration
           break;
         case CHARGE_BOOT_CAP:
           // Charging capacitors
-          HAL_Delay(200); // Wait for charging
+          // HAL_Delay(200); // Wait for charging
           break;
         case ALIGNMENT:
           // Alignment state

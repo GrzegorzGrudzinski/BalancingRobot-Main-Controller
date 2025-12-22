@@ -3,7 +3,7 @@
     "tasks": [
         // Linux
         {
-            "label": "Build all (Linux)",
+            "label": "Controller: Build all (Linux)",
             "group": "build",
             "type": "shell",
             "command": "make",
@@ -11,7 +11,7 @@
             "linux": {}
         },
         {
-            "label": "Build clean (Linux)",
+            "label": "Controller: Build clean (Linux)",
             "group": "build",
             "type": "shell",
             "command": "make",
@@ -20,7 +20,7 @@
         },
         // Windows
         {
-            "label": "Build all (Windows)",
+            "label": "Controller: Build all (Windows)",
             "group": "build",
             "type": "shell",
             "command": "mingw32-make",
@@ -28,7 +28,7 @@
             "windows": {} 
         },
         {
-            "label": "Build clean (Windows)",
+            "label": "Controller: Build clean (Windows)",
             "group": "build",
             "type": "shell",
             "command": "mingw32-make",

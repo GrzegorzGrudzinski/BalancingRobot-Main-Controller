@@ -46,13 +46,11 @@ void send_motor_command(UART_HandleTypeDef *huart, uint8_t command, float value)
     static MotorPacket_t packet1;
     static MotorPacket_t packet2;
     MotorPacket_t* p_packet = NULL;
-    uint8_t uart_nr = 0;
+    
     if (huart->Instance == USART2) {
         p_packet = &packet1;
-        uart_nr = 2;
     } else {
         p_packet = &packet2;
-        uart_nr = 1;
     }
     *p_packet = create_motor_packet(command, value);
     
