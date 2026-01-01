@@ -32,7 +32,6 @@ void pidInit (PID_t *pid, float Kp, float Ki,float Kd, uint32_t timeSample)
     pid->output = 0.0f;
 }
 
-
 // run_pid
 float run_pid(PID_t *pid, float position, float setPoint) {
     uint32_t currentTime = _getTime();
@@ -46,7 +45,7 @@ float run_pid(PID_t *pid, float position, float setPoint) {
         pid->P = pid->error * pid->Kp;
         
         pid->error_sum += pid->error*dt;
-        pid->I = pid->error_sum* pid->Ki; // TODO I max and min values
+        pid->I = pid->error_sum* pid->Ki;
         const float I_MAX = MAX_SPEED;
         const float I_MIN = -MAX_SPEED;
         if (pid->I > I_MAX) pid->I = I_MAX;
@@ -54,7 +53,7 @@ float run_pid(PID_t *pid, float position, float setPoint) {
         
         float dposition = position-pid->lastPos;
         pid->D = -pid->Kd * (dposition/dt); // - because we use position change
-
+        
         
         pid->output = pid->P+pid->I+pid->D;
         const float OUT_MAX = MAX_SPEED;

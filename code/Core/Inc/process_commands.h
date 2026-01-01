@@ -72,6 +72,7 @@ typedef enum
 uint8_t calculate_checksum(void* data, size_t length);
 MotorPacket_t create_motor_packet(uint8_t command, float value);
 void send_motor_command(UART_HandleTypeDef *huart, uint8_t command, float value);
+void process_feedback(UART_HandleTypeDef *huart, uint8_t rx_msg_recieved, FeedbackPacket_t esc_data, uint8_t* error_flag);
 const char* GetStateName(uint8_t s);
 
 // void recieve_feedback(UART_HandleTypeDef *huart, FeedbackPacket_t* feedback, RX_Struct* rx_struct);

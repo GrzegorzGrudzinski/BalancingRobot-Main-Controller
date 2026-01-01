@@ -50,6 +50,8 @@
 
 #define IMU_I2C   hi2c2
 
+#define LOOP_TIME 5
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -222,8 +224,8 @@ int main(void)
   }
   printf("IMU - initialization complete \r\n");
 
-  
-  pidInit(&pid, 10, 0, 0.5, 10); // Kp, Ki, Kd, timeSample in ms
+
+  pidInit(&pid, 10, 0, 0.5, LOOP_TIME); // Kp, Ki, Kd, timeSample in ms
   // Calibrate offset
   float offset = 0.0f;
   uint32_t pid_calib_start_time = HAL_GetTick();
@@ -299,7 +301,9 @@ int main(void)
   HAL_Delay(50);
 
   /********************************************
-   CHECK FOR IDLE STATE AND CHANGE TO RUN
+       CHECK FOR IDLE STATE AND CHANGE TO RUN
+
+      TODO Check motor spinning dir and sync
    *********************************************/
   uint32_t init_start_time = HAL_GetTick(); // Init timeout timer
   uint32_t init_sent_timer = HAL_GetTick();
@@ -380,6 +384,13 @@ int main(void)
       // TODO - Add blinking led at error
     }
   }
+
+
+    /********************************************
+                        TODO
+              Here should be the code 
+                checking motors sync
+   *********************************************/
   
   printf("BALANCING ROBOT - initialization complete \r\n");
 
@@ -399,7 +410,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
     
     // Control loop
-    if (HAL_GetTick() - last_loop_time >= 10) 
+    if (HAL_GetTick() - last_loop_time >= LOOP_TIME) 
     {
       last_loop_time = HAL_GetTick();
 
@@ -410,7 +421,7 @@ int main(void)
       if (fabsf(angle) <= 0.5) {
         angle = 0;
       }
-      // 2. Compute PID
+      // 2. Calculate PID
       output = run_pid(&pid, angle, desired_angle);      // convert values to motor commands (angle -> linear vel) 
       
       // 3. Send data to ESCs
@@ -421,142 +432,8 @@ int main(void)
     }
     
     // 4. Process data from ESCs
-    if (rx1_msg_recieved) {
-      //Check for errors from ESC
-      if (esc1_data.speed_rpm > 4000.0f || esc1_data.speed_rpm < -4000.0f || 
-        esc1_data.current_Iq > 30.0f || esc1_data.current_Iq < -30.0f)
-      {
-          // Handle error
-
-          // send_motor_command_dma(&MOT2_UART, CMD_STOP, 0);
-          send_motor_command(&MOT1_UART, CMD_STOP, 0);
-          error_flag = 1; // Set error flag
-      }
-      switch (esc1_data.status) {
-        case FAULT_NOW:
-          // Handle fault state
-          error_flag = 1; // Set error flag
-          break;
-        case FAULT_OVER:
-          // Handle fault state
-          send_motor_command(&MOT1_UART, CMD_CLR_FLT, 0);
-          break;
-        case IDLE:
-          // Restart motor if in IDLE
-          send_motor_command(&MOT1_UART, CMD_START, 0);
-          break;
-
-        // case RUN:
-        //   // Normal operation
-        //   break;
-        // case START:
-        //   // Motor is starting
-        //   break;
-        // case STOP:
-        //   // Motor is stopping
-        //   break;
-
-        case OFFSET_CALIB:
-          // Calibration state
-          // HAL_Delay(200); // Wait for calibration
-          break;
-        case CHARGE_BOOT_CAP:
-          // Charging capacitors
-          // HAL_Delay(200); // Wait for charging
-          break;
-        case ALIGNMENT:
-          // Alignment state
-          break;
-        case SWITCH_OVER:
-          // Switching from open loop to closed loop
-          break;
-        case ICLWAIT:
-          // Waiting for ICL to clear
-          break;
-        case WAIT_STOP_MOTOR:
-          // Waiting for motor to stop
-          break;
-        case OTF_DETECTION:
-          // On-the-fly detection
-          break;
-        case OTF_BRAKE:
-          // On-the-fly braking
-          break;
-
-        default:
-          break;
-      }
-      rx1_msg_recieved = 0;
-    }
-
-    if (rx2_msg_recieved) {
-      //Check for errors from ESC
-      if (esc2_data.speed_rpm > 4000.0f || esc2_data.speed_rpm < -4000.0f || 
-        esc2_data.current_Iq > 30.0f || esc2_data.current_Iq < -30.0f)
-      {
-          // Handle error
-
-          // send_motor_command_dma(&MOT2_UART, CMD_STOP, 0);
-          send_motor_command(&MOT2_UART, CMD_STOP, 0);
-          error_flag = 1; // Set error flag
-      }
-
-      switch (esc2_data.status) {
-        case FAULT_NOW:
-          // Handle fault state
-          error_flag = 1; // Set error flag
-          break;
-        case FAULT_OVER:
-          // Handle fault state
-          send_motor_command(&MOT2_UART, CMD_CLR_FLT, 0);
-          break;
-        case IDLE:
-          // Restart motor if in IDLE
-          send_motor_command(&MOT2_UART, CMD_START, 0);
-          break;
-
-        // case RUN:
-        //   // Normal operation
-        //   break;
-        // case START:
-        //   // Motor is starting
-        //   break;
-        // case STOP:
-        //   // Motor is stopping
-        //   break;
-
-        case OFFSET_CALIB:
-          // Calibration state
-          // HAL_Delay(200); // Wait for calibration
-          break;
-        case CHARGE_BOOT_CAP:
-          // Charging capacitors
-          // HAL_Delay(200); // Wait for charging
-          break;
-        case ALIGNMENT:
-          // Alignment state
-          break;
-        case SWITCH_OVER:
-          // Switching from open loop to closed loop
-          break;
-        case ICLWAIT:
-          // Waiting for ICL to clear
-          break;
-        case WAIT_STOP_MOTOR:
-          // Waiting for motor to stop
-          break;
-        case OTF_DETECTION:
-          // On-the-fly detection
-          break;
-        case OTF_BRAKE:
-          // On-the-fly braking
-          break;
-
-        default:
-          break;
-      }
-      rx2_msg_recieved = 0;
-    }
+    process_feedback(&MOT1_UART, rx1_msg_recieved, esc1_data, error_flag);
+    process_feedback(&MOT2_UART, rx2_msg_recieved, esc2_data, error_flag);
 
     // 5. Debug info via USB 
     if (HAL_GetTick() - last_debug_time >= 200) 
@@ -566,14 +443,26 @@ int main(void)
         printf("ERROR: Out of range values from ESC! Stopping motors.\r\n");
       }
 
-      printf("MOTOR 1: STATE: %s | RPM: %.2f | CURR q: %.2f | CURR d: %.2f \r\n", GetStateName(esc1_data.status), esc1_data.speed_rpm, esc1_data.current_Iq, esc1_data.current_Id);
-      printf("MOTOR 2: STATE: %s | RPM: %.2f | CURR q: %.2f | CURR d: %.2f \r\n", GetStateName(esc2_data.status), esc2_data.speed_rpm, esc2_data.current_Iq, esc2_data.current_Id);
-      
-      printf("ANGLE: %.2f | PID: %.2f \r\n\n", angle, output);
+      /*
+        printf("MOTOR 1: STATE: %s | RPM: %.2f | CURR q: %.2f | CURR d: %.2f \r\n", GetStateName(esc1_data.status), esc1_data.speed_rpm, esc1_data.current_Iq, esc1_data.current_Id);
+        printf("MOTOR 2: STATE: %s | RPM: %.2f | CURR q: %.2f | CURR d: %.2f \r\n", GetStateName(esc2_data.status), esc2_data.speed_rpm, esc2_data.current_Iq, esc2_data.current_Id);
+        
+        printf("ANGLE: %.2f | PID: %.2f \r\n\n", angle, output);
+      */
+
+      char message[256];
+      snprintf (message, sizeof(message), "MOTOR 1: STATE: %s | RPM: %.2f | CURR q: %.2f | CURR d: %.2f\n\
+                  MOTOR 2: STATE: %s | RPM: %.2f | CURR q: %.2f | CURR d: %.2f\n\
+                  ANGLE: %.2f | PID: %.2f \r\n\n", 
+              GetStateName(esc1_data.status), esc1_data.speed_rpm, esc1_data.current_Iq, esc1_data.current_Id,
+              GetStateName(esc2_data.status), esc2_data.speed_rpm, esc2_data.current_Iq, esc2_data.current_Id,
+              angle, output);
+      printf(message);
     }
 
     /* USER CODE END WHILE */
   }
+  
   /* USER CODE END 3 */
 }
 

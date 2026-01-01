@@ -19,6 +19,7 @@ typedef struct
 
     uint32_t timeSample; // 
     uint32_t prevTime;
+    
     float lastPos;
 } PID_t;
 
