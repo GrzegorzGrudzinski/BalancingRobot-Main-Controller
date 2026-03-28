@@ -3,6 +3,8 @@
 #include <string.h>
 
 uint8_t calculate_checksum(void* data, size_t length) {
+    if(length==0 ) return 0;
+    
     uint8_t checksum = 0;
     uint8_t* byte = (uint8_t*)data;
 

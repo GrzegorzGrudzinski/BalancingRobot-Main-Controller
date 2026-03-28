@@ -42,6 +42,10 @@
 
 #define USB_BLOCK_SIZE 0x200	//512 bytes
 
+/*
+  STM PA2 -> TX   ESP -> 16 (RX)  
+  STM PA3 -> RX   ESP -> 17 (TX) (czarne)
+*/
 #define MOT1_UART huart2
 // #define MOT2_UART huart1
 
@@ -101,6 +105,7 @@ volatile uint8_t rx_msg_recieved = 0; // message received flag
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
+const char* GetStateName(RobotState_t s);
 
 /* USER CODE END PFP */
 
@@ -184,10 +189,7 @@ int main(void)
       // }
 
       switch (robot_state) {
-        case STATE_INIT:
-        /*
-          check if the communication is ok - wait for the message from motor controller
-        */
+        case STATE_INIT: // check if the communication is ok - wait for the message from motor controller
           if (motor_feedback_data.status == CMD_HELLO_MOTOR) {
             static uint16_t init_timer = 0;
             if (++init_timer >= ONE_SEC/2) { // (send command every 500 ms)
@@ -197,10 +199,7 @@ int main(void)
             }
           }
           break;
-        case STATE_IDLE:
-        /*
-          wait until everything is ready
-        */
+        case STATE_IDLE: //  wait until everything is ready
           static uint16_t idle_timer = 0;
           if (++idle_timer >= ONE_SEC/2) { // (send command every 500 ms)
             send_motor_command(&MOT1_UART, CMD_INIT, 0.0, 0.0);
@@ -210,10 +209,7 @@ int main(void)
             robot_state = STATE_BALANCING;
           }
           break;
-        case STATE_BALANCING:
-        /*
-          normal operation
-        */
+        case STATE_BALANCING: // normal operation
           if (fabsf(angle) > 45.0f){// Out of range
             robot_state = STATE_FALLEN;
             break;
@@ -245,7 +241,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
     if (HAL_GetTick() - last_debug_time >= DEBUG_TIME) {
       last_debug_time = HAL_GetTick();
-      printf("State: %x\tAngle: %.2f\tOutput2: %.2f\n\r", robot_state, angle, output);
+      printf("State: %s\tAngle: %.2f\tOutput2: %.2f\n\r", GetStateName(robot_state), angle, output);
     }
   }
   /* USER CODE END 3 */
@@ -353,6 +349,16 @@ void sensors_init(float* offset) {
   HAL_Delay(50);
 }
 
+const char* GetStateName(RobotState_t s) {
+  switch(s) {
+    case STATE_INIT: return "INIT";
+    case STATE_IDLE: return "IDLE";
+    case STATE_BALANCING: return "BALANCING";
+    case STATE_FALLEN: return "FALLEN";
+    default: return "UNKNOWN";
+  }
+}
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == TIM3)
@@ -360,7 +366,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         loop_flag = 1; // Set main loop flag 
     }
 }
-
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
