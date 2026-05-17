@@ -35,39 +35,13 @@
 #include "mpu6050.h"
 #include "dualFOC_communication.h"
 #include "pid.h"
+#include "config.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
 #define USB_BLOCK_SIZE 0x200	//512 bytes
-
-/*
-  STM PA2 -> TX   ESP -> 16 (RX)  
-  STM PA3 -> RX   ESP -> 17 (TX) (czarne)
-*/
-#define MOT1_UART huart2
-// #define MOT2_UART huart1
-
-#define IMU_I2C   hi2c2
-
-#define LOOP_TIMER htim3
-
-#define TIM_PERIOD_REG_VAL ((htim3.Init.Period+1)/1000) // ms
-
-#define LOOP_TIME 5  
-#define ONE_SEC (1000 / LOOP_TIME) // 
-#define HALF_SEC (500 / LOOP_TIME) // 
-
-#define DEBUG_TIME 500
-
-
-typedef enum {
-    STATE_INIT,
-    STATE_IDLE,
-    STATE_BALANCING,
-    STATE_FALLEN
-} RobotState_t;
 
 /* USER CODE END PTD */
 
@@ -86,19 +60,20 @@ typedef enum {
 /* USER CODE BEGIN PV */
 MPU6050_t MPU6050;
 PID_t pid;
+
 float offset = 0.0f; // angle offset
-
-uint8_t error_flag = 0;    // Global error flag
-
-RobotState_t robot_state = STATE_INIT;
 
 volatile uint8_t loop_flag = 0; // 
 
+uint8_t error_flag = 0;    // Global error flag
 FeedbackPacket_t motor_feedback_data = {0}; // Data from ESC1
 
 uint8_t rxRawBuffer[sizeof(FeedbackPacket_t)]; // Raw buffer for receiving data
 volatile uint8_t rx_msg_recieved = 0; // message received flag
 
+// USER BUTTON
+uint8_t button_prev_state = 0;
+uint32_t button_debounce_time = 0;
 
 /* USER CODE END PV */
 
@@ -169,7 +144,6 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  float target_angle = 00.0f;
   float angle = 0.0f;
   float output = 0.0f;
 
@@ -177,18 +151,42 @@ int main(void)
 
   while (1)
   {
+    uint8_t button_state = HAL_GPIO_ReadPin(BUTTON_PIN_PORT, BUTTON_PIN_NUM);
+    uint8_t button_pressed = 0;
+
+    if (button_state == GPIO_PIN_SET && button_prev_state == GPIO_PIN_RESET) {
+        if (HAL_GetTick() - button_debounce_time > 50) { // 50ms delay for debounce
+            button_pressed = 1;
+            button_debounce_time = HAL_GetTick();
+        }
+    }
+    button_prev_state = button_state;
+
     // Control loop
     if (loop_flag) {    
       loop_flag = 0;
       // 1. Read MPU6050 data
       MPU6050_Read_All(&IMU_I2C, &MPU6050);
-      angle = MPU6050.KalmanAngleX;
-      angle -= offset;
+      angle = MPU6050.KalmanAngleX - offset;
+
       // if (fabsf(angle) <= 0.05) { // Target
       //   angle = 0;
       // }
 
       switch (robot_state) {
+
+        case STATE_STANDBY:
+            if (button_pressed) {
+              pid_reset(&pid, angle);
+              output = 0.0f;
+
+              send_motor_command(&MOT1_UART, CMD_START_INIT, 0, 0);
+            }
+            if (motor_feedback_data.status == CMD_START_INIT) {
+              robot_state = STATE_INIT;
+            }
+          break;
+
         case STATE_INIT: // check if the communication is ok - wait for the message from motor controller
           if (motor_feedback_data.status == CMD_HELLO_MOTOR) {
             static uint16_t init_timer = 0;
@@ -199,6 +197,7 @@ int main(void)
             }
           }
           break;
+
         case STATE_IDLE: //  wait until everything is ready
           static uint16_t idle_timer = 0;
           if (++idle_timer >= ONE_SEC/2) { // (send command every 500 ms)
@@ -209,30 +208,49 @@ int main(void)
             robot_state = STATE_BALANCING;
           }
           break;
+
         case STATE_BALANCING: // normal operation
-          if (fabsf(angle) > 45.0f){// Out of range
+          if (fabsf(angle) > MAX_ANGLE){// Out of range
             robot_state = STATE_FALLEN;
             break;
           }
+
           // 2. Calculate PID
           output = run_pid(&pid, angle, target_angle);      // convert values to motor commands (angle -> linear vel)
           // 3. Send data to ESCs
           send_motor_command(&MOT1_UART, CMD_SET_VAL, output, output);
+
+          if (motor_feedback_data.status == CMD_ERROR) {
+            robot_state = STATE_ERROR;
+          }
+          else if (motor_feedback_data.status == CMD_STOP) {
+            robot_state = STATE_STANDBY;
+          }
           break;
+
         case STATE_FALLEN:
           send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
           pid_reset(&pid, angle);
-          output = 0;
+          output = 0.0f;
 
-          // if (fabsf(angle) < 5.0f){ // Back in range
-            // robot_state = STATE_BALANCING;
-            // break;
-          // }
+          robot_state = STATE_STANDBY;
           break;
+        case STATE_ERROR:
+            if (button_pressed) {
+              send_motor_command(&MOT1_UART, CMD_CLR_FLT, 0.0, 0.0);
+              pid_reset(&pid, angle);
+              output = 0.0f;
+            }
+
+            if (motor_feedback_data.status == CMD_CLR_FLT) {
+              robot_state = STATE_STANDBY;
+            }
+          break;
+
         default:
           send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
           pid_reset(&pid, angle);
-          output = 0;
+          output = 0.0f;
           break;
       }       
     }
@@ -310,14 +328,14 @@ void sensors_init(float* offset) {
   printf("IMU - initialization complete \r\n");
 
   
-  pidInit(&pid, 0.1, 0, 0, 1, 1, LOOP_TIME);
+  pidInit(&pid, PID_KP, PID_KI, PID_KD, PID_MAX_OUT, PID_MAX_I, LOOP_TIME);
   
   printf("Offset calibration in 3 sec...\r\n");
   
   uint32_t warmup_ticks = 0;
   
   // Filter warmup
-  while (warmup_ticks < ONE_SEC*3) {
+  while (warmup_ticks < CALIB_WARMUP_TIME) {
     if (loop_flag) {
       loop_flag = 0;
       MPU6050_Read_All(&IMU_I2C, &MPU6050); 
@@ -331,7 +349,7 @@ void sensors_init(float* offset) {
   uint32_t calib_ticks = 0;
   loop_flag = 0;
 
-  while (calib_ticks < ONE_SEC) {
+  while (calib_ticks < CALIB_TIME) {
     if (loop_flag) {
       loop_flag = 0;
       MPU6050_Read_All(&IMU_I2C, &MPU6050);
