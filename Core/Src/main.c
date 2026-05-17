@@ -221,7 +221,7 @@ int main(void)
           break;
         case STATE_FALLEN:
           send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
-          pid_reset(&pid);
+          pid_reset(&pid, angle);
           output = 0;
 
           // if (fabsf(angle) < 5.0f){ // Back in range
@@ -231,7 +231,7 @@ int main(void)
           break;
         default:
           send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
-          pid_reset(&pid);
+          pid_reset(&pid, angle);
           output = 0;
           break;
       }       
@@ -310,7 +310,7 @@ void sensors_init(float* offset) {
   printf("IMU - initialization complete \r\n");
 
   
-  pidInit(&pid, 0.1, 0, 0, 1, 1, 10);
+  pidInit(&pid, 0.1, 0, 0, 1, 1, LOOP_TIME);
   
   printf("Offset calibration in 3 sec...\r\n");
   
@@ -344,7 +344,9 @@ void sensors_init(float* offset) {
 
   printf("Offset calibration complete. Offset = %.2f deg\r\n", *offset);
   
-  pid_reset(&pid);
+  float angle = MPU6050.KalmanAngleX;
+  angle -= *offset;
+  pid_reset(&pid, angle);
   loop_flag = 0;
   HAL_Delay(50);
 }

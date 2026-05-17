@@ -1,3 +1,7 @@
+/*
+ dualFOC_communication.c
+*/
+
 #include "dualFOC_communication.h"
 #include <stdio.h>
 #include <string.h>

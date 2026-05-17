@@ -1,4 +1,6 @@
 /*
+    PID.c
+
     1. check position
     2. calculate error
     3. correct yourself
@@ -77,14 +79,14 @@ float run_pid(PID_t *pid, float position, float setPoint) {
     return pid->output;
 }
 
-void pid_reset(PID_t *pid) {
+void pid_reset(PID_t *pid, float currnet_pos) {
     // 1. Resetujemy historię uchybów i sumę całkowania (Integral Windup)
     pid->error = 0.0f;
     pid->last_error = 0.0f;
     pid->error_sum = 0.0f;
     
     // 2. Resetujemy historię pozycji (zapobiega strzałom z członu D)
-    pid->lastPos = 0.0f;
+    pid->lastPos = currnet_pos;
 
     // 3. Resetujemy składowe wyjściowe dla pewności
     pid->P = 0.0f;
