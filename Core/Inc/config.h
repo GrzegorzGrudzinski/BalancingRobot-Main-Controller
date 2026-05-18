@@ -19,6 +19,9 @@
 #define BUTTON_PIN_PORT GPIOA
 #define BUTTON_PIN_NUM  GPIO_PIN_0
 
+// pull up config: pressed = reset; idle = set;
+#define BUTTON_PRESSED  GPIO_PIN_RESET
+#define BUTTON_IDLE     GPIO_PIN_SET
 //======================
 //  Timers
 //======================
@@ -44,12 +47,12 @@ typedef enum {
     STATE_ERROR
 } RobotState_t;
 
-extern RobotState_t robot_state = STATE_STANDBY;
+extern RobotState_t robot_state;
 
 //======================
 //  Balancing
 //======================
-extern float target_angle = 00.0f;
+extern float target_angle;
 
 #define MAX_ANGLE   60.0f
 

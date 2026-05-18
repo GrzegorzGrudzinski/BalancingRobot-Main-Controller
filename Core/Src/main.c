@@ -61,6 +61,7 @@
 MPU6050_t MPU6050;
 PID_t pid;
 
+float target_angle = 00.0f;
 float offset = 0.0f; // angle offset
 
 volatile uint8_t loop_flag = 0; // 
@@ -71,7 +72,10 @@ FeedbackPacket_t motor_feedback_data = {0}; // Data from ESC1
 uint8_t rxRawBuffer[sizeof(FeedbackPacket_t)]; // Raw buffer for receiving data
 volatile uint8_t rx_msg_recieved = 0; // message received flag
 
-// USER BUTTON
+RobotState_t robot_state = STATE_STANDBY;
+
+// USER 
+uint8_t button_pressed = 0;
 uint8_t button_prev_state = 0;
 uint32_t button_debounce_time = 0;
 
@@ -152,13 +156,20 @@ int main(void)
   while (1)
   {
     uint8_t button_state = HAL_GPIO_ReadPin(BUTTON_PIN_PORT, BUTTON_PIN_NUM);
-    uint8_t button_pressed = 0;
 
-    if (button_state == GPIO_PIN_SET && button_prev_state == GPIO_PIN_RESET) {
-        if (HAL_GetTick() - button_debounce_time > 50) { // 50ms delay for debounce
+    if (button_state != button_prev_state) { 
+        button_debounce_time = HAL_GetTick(); 
+    }
+    if (HAL_GetTick() - button_debounce_time > 50) { 
+      static uint8_t button_debounced_state = GPIO_PIN_SET;
+
+      if (button_state != button_debounced_state) {
+        button_debounced_state = button_state; 
+        
+        if (button_debounced_state == BUTTON_PRESSED) {
             button_pressed = 1;
-            button_debounce_time = HAL_GetTick();
         }
+      }     
     }
     button_prev_state = button_state;
 
@@ -253,6 +264,8 @@ int main(void)
           output = 0.0f;
           break;
       }       
+
+      button_pressed = 0; // clear button memory
     }
     /* USER CODE END WHILE */
 
