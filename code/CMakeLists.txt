@@ -19,7 +19,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Set the project name
-set(CMAKE_PROJECT_NAME robot401)
+set(CMAKE_PROJECT_NAME BalancingRobot-Main-Controller)
 
 # Enable compile command to ease indexing with e.g. clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
@@ -49,7 +49,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/pid.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/mpu6050.c"
     # "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/BGESC1_COMMANDS.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/DUALFOC_COMMANDS.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/dualFOC_communication.c"
 )
 
 # Add include paths

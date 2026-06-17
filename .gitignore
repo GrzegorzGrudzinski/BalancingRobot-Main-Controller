@@ -2,3 +2,5 @@ build
 mx.scratch
 !.settings
 Tests
+.vscode
+project_tree*

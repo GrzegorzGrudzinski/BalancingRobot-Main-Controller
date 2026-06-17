@@ -29,7 +29,7 @@ typedef struct
 
 void pidInit (PID_t *pid, float Kp, float Ki,float Kd, float max_output, float max_i, uint32_t timeSample);
 float run_pid(PID_t *pid, float position, float setPoint);
-void pid_reset(PID_t *pid);
+void pid_reset(PID_t *pid, float current_pos);
 
 
 #endif /* PID_H_ */
