@@ -40,21 +40,23 @@ add_subdirectory(cmake/stm32cubemx)
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined library search paths
+    
 )
 
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     # pid.c
-    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/pid.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/mpu6050.c"
-    # "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/BGESC1_COMMANDS.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/dualFOC_communication.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/pid.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/dualFOC_communication.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/IO/mpu6050.c"
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/App"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/App/IO"  
 )
 
 # Add project symbols (macros)
