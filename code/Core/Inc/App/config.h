@@ -35,24 +35,9 @@
 #define DEBUG_TIME 500
 
 //======================
-//  State machine
-//======================
-
-typedef enum {
-    STATE_STANDBY,
-    STATE_INIT,
-    STATE_IDLE,
-    STATE_BALANCING,
-    STATE_FALLEN,
-    STATE_ERROR
-} RobotState_t;
-
-extern RobotState_t robot_state;
-
-//======================
 //  Balancing
 //======================
-extern float target_angle;
+#define TARGET_ANGLE  0.0f;
 
 #define MAX_ANGLE   60.0f
 

@@ -29,12 +29,10 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdint.h>
-#include <stdio.h>
-#include <math.h>
 #include "usbd_cdc_if.h"
-#include "mpu6050.h"
 #include "dualFOC_communication.h"
-#include "pid.h"
+#include "robot_app.h"
+#include "IO/button.h"
 #include "config.h"
 /* USER CODE END Includes */
 
@@ -58,33 +56,13 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-MPU6050_t MPU6050;
-PID_t pid;
-
-float target_angle = 00.0f;
-float offset = 0.0f; // angle offset
-
-volatile uint8_t loop_flag = 0; // 
-
-uint8_t error_flag = 0;    // Global error flag
-FeedbackPacket_t motor_feedback_data = {0}; // Data from ESC1
-
-uint8_t rxRawBuffer[sizeof(FeedbackPacket_t)]; // Raw buffer for receiving data
-volatile uint8_t rx_msg_recieved = 0; // message received flag
-
-RobotState_t robot_state = STATE_STANDBY;
-
-// USER 
-uint8_t button_pressed = 0;
-uint8_t button_prev_state = 0;
-uint32_t button_debounce_time = 0;
+volatile uint8_t loop_flag;
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-const char* GetStateName(RobotState_t s);
 
 /* USER CODE END PFP */
 
@@ -95,8 +73,6 @@ int _write(int file, char *ptr, int len) {
     CDC_Transmit_FS((uint8_t*) ptr, len);
     return len;
 }
-
-void sensors_init(float* offset);
 
 /* USER CODE END 0 */
 
@@ -142,138 +118,21 @@ int main(void)
     /*  ERROR - WRONG LOOP TIME VALUE  */
     return -1;
   }
-  sensors_init(&offset);
+
+  RobotInit();
   HAL_UART_Receive_IT(&MOT1_UART, rxRawBuffer, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  float angle = 0.0f;
-  float output = 0.0f;
-
-  uint32_t last_debug_time = HAL_GetTick();
 
   while (1)
   {
-    uint8_t button_state = HAL_GPIO_ReadPin(BUTTON_PIN_PORT, BUTTON_PIN_NUM);
-
-    if (button_state != button_prev_state) { 
-        button_debounce_time = HAL_GetTick(); 
-    }
-    if (HAL_GetTick() - button_debounce_time > 50) { 
-      static uint8_t button_debounced_state = GPIO_PIN_SET;
-
-      if (button_state != button_debounced_state) {
-        button_debounced_state = button_state; 
-        
-        if (button_debounced_state == BUTTON_PRESSED) {
-            button_pressed = 1;
-        }
-      }     
-    }
-    button_prev_state = button_state;
-
-    // Control loop
-    if (loop_flag) {    
-      loop_flag = 0;
-      // 1. Read MPU6050 data
-      MPU6050_Read_All(&IMU_I2C, &MPU6050);
-      angle = MPU6050.KalmanAngleX - offset;
-
-      // if (fabsf(angle) <= 0.05) { // Target
-      //   angle = 0;
-      // }
-
-      switch (robot_state) {
-
-        case STATE_STANDBY:
-            if (button_pressed) {
-              pid_reset(&pid, angle);
-              output = 0.0f;
-
-              send_motor_command(&MOT1_UART, CMD_START_INIT, 0, 0);
-            }
-            if (motor_feedback_data.status == CMD_START_INIT) {
-              robot_state = STATE_INIT;
-            }
-          break;
-
-        case STATE_INIT: // check if the communication is ok - wait for the message from motor controller
-          if (motor_feedback_data.status == CMD_HELLO_MOTOR) {
-            static uint16_t init_timer = 0;
-            if (++init_timer >= ONE_SEC/2) { // (send command every 500 ms)
-              send_motor_command(&MOT1_UART, CMD_HELLO_MASTER, 0.0, 0.0);
-              init_timer = 0;
-              robot_state = STATE_IDLE;
-            }
-          }
-          break;
-
-        case STATE_IDLE: //  wait until everything is ready
-          static uint16_t idle_timer = 0;
-          if (++idle_timer >= ONE_SEC/2) { // (send command every 500 ms)
-            send_motor_command(&MOT1_UART, CMD_INIT, 0.0, 0.0);
-            idle_timer = 0;
-          }
-          if (motor_feedback_data.status == CMD_START) {
-            robot_state = STATE_BALANCING;
-          }
-          break;
-
-        case STATE_BALANCING: // normal operation
-          if (fabsf(angle) > MAX_ANGLE){// Out of range
-            robot_state = STATE_FALLEN;
-            break;
-          }
-
-          // 2. Calculate PID
-          output = run_pid(&pid, angle, target_angle);      // convert values to motor commands (angle -> linear vel)
-          // 3. Send data to ESCs
-          send_motor_command(&MOT1_UART, CMD_SET_VAL, output, output);
-
-          if (motor_feedback_data.status == CMD_ERROR) {
-            robot_state = STATE_ERROR;
-          }
-          else if (motor_feedback_data.status == CMD_STOP) {
-            robot_state = STATE_STANDBY;
-          }
-          break;
-
-        case STATE_FALLEN:
-          send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
-          pid_reset(&pid, angle);
-          output = 0.0f;
-
-          robot_state = STATE_STANDBY;
-          break;
-        case STATE_ERROR:
-            if (button_pressed) {
-              send_motor_command(&MOT1_UART, CMD_CLR_FLT, 0.0, 0.0);
-              pid_reset(&pid, angle);
-              output = 0.0f;
-            }
-
-            if (motor_feedback_data.status == CMD_CLR_FLT) {
-              robot_state = STATE_STANDBY;
-            }
-          break;
-
-        default:
-          send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
-          pid_reset(&pid, angle);
-          output = 0.0f;
-          break;
-      }       
-
-      button_pressed = 0; // clear button memory
-    }
+    ButtonUpdate();
+    RobotUpdate();
+    RobotLog();
     /* USER CODE END WHILE */
-
     /* USER CODE BEGIN 3 */
-    if (HAL_GetTick() - last_debug_time >= DEBUG_TIME) {
-      last_debug_time = HAL_GetTick();
-      printf("State: %s\tAngle: %.2f\tOutput2: %.2f\n\r", GetStateName(robot_state), angle, output);
-    }
   }
   /* USER CODE END 3 */
 }
@@ -325,72 +184,6 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void sensors_init(float* offset) {
-    HAL_Delay(1000); // TEMP (for debugging)
-  
-  printf("BALANCING ROBOT - starting initialization \r\n");
-  
-  uint32_t mpu_init_time = HAL_GetTick(); // Init timeout timer
-  
-  while (MPU6050_Init(&IMU_I2C) == 1) {
-    if (HAL_GetTick() - mpu_init_time > ONE_SEC) {
-      printf("IMU initialization\r\n");
-      mpu_init_time = HAL_GetTick(); // Reset timer
-    }
-  }
-  printf("IMU - initialization complete \r\n");
-
-  
-  pidInit(&pid, PID_KP, PID_KI, PID_KD, PID_MAX_OUT, PID_MAX_I, LOOP_TIME);
-  
-  printf("Offset calibration in 3 sec...\r\n");
-  
-  uint32_t warmup_ticks = 0;
-  
-  // Filter warmup
-  while (warmup_ticks < CALIB_WARMUP_TIME) {
-    if (loop_flag) {
-      loop_flag = 0;
-      MPU6050_Read_All(&IMU_I2C, &MPU6050); 
-      warmup_ticks++;
-    }
-  }
-  // Calibrate offset
-  printf("Calibration start - DONT MOVE THE DEVICE!\n\r");
-
-  float pid_offset_sum = 0.0f;
-  uint32_t calib_ticks = 0;
-  loop_flag = 0;
-
-  while (calib_ticks < CALIB_TIME) {
-    if (loop_flag) {
-      loop_flag = 0;
-      MPU6050_Read_All(&IMU_I2C, &MPU6050);
-      pid_offset_sum += MPU6050.KalmanAngleX;
-      calib_ticks++;
-    }
-    // HAL_Delay(1);
-  }
-  *offset = pid_offset_sum / (float)calib_ticks;
-
-  printf("Offset calibration complete. Offset = %.2f deg\r\n", *offset);
-  
-  float angle = MPU6050.KalmanAngleX;
-  angle -= *offset;
-  pid_reset(&pid, angle);
-  loop_flag = 0;
-  HAL_Delay(50);
-}
-
-const char* GetStateName(RobotState_t s) {
-  switch(s) {
-    case STATE_INIT: return "INIT";
-    case STATE_IDLE: return "IDLE";
-    case STATE_BALANCING: return "BALANCING";
-    case STATE_FALLEN: return "FALLEN";
-    default: return "UNKNOWN";
-  }
-}
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
@@ -402,36 +195,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-  if (huart->Instance == USART2)
-  {
-    static uint8_t rxState_flag = 0; // 0 -looking for start byte, 1 - receiving data
-
-    if (rxState_flag == 0) {
-      if (rxRawBuffer[0] == 0xBB) { // Start byte found
-        rxState_flag = 1;
-
-        HAL_UART_Receive_IT(huart, &rxRawBuffer[1], sizeof(FeedbackPacket_t) - 1); // Receive rest of the packet
-      }
-      else {
-        HAL_UART_Receive_IT(huart, rxRawBuffer, 1); 
-      }
-    }
-    else if (rxState_flag == 1) {
-      // Full packet received
-      FeedbackPacket_t* recieved_pkt = (FeedbackPacket_t*)rxRawBuffer;
-
-      //calcuate checksum and verify
-      uint8_t checksum = calculate_checksum(rxRawBuffer, sizeof(FeedbackPacket_t));
-      if (recieved_pkt->checksum == checksum) {
-        // Valid packet
-        motor_feedback_data = *recieved_pkt;
-        rx_msg_recieved = 1;
-      }
-
-      rxState_flag = 0; // Reset state to look for next packet
-      // Restart reception for next packet
-      HAL_UART_Receive_IT(huart, rxRawBuffer, 1);
-    } 
+  if (huart->Instance == USART2) {
+     processRxPacket(huart);
   } // if USART2
 }
 

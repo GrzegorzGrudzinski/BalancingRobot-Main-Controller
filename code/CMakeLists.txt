@@ -47,9 +47,13 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     # pid.c
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/robot_app.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/pid.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/dualFOC_communication.c"
+
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/IO/mpu6050.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/IO/imu_handler.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/IO/button.c"
 )
 
 # Add include paths
