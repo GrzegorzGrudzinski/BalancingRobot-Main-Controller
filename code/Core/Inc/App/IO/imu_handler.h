@@ -4,9 +4,8 @@
 #include "main.h"
 #include "config.h"
 #include "mpu6050.h"
-#include "pid.h" 
 
-void IMU_Init(PID_t* pid);
+void  IMU_Init();
 float IMU_GetAngle(void);
 
 #endif

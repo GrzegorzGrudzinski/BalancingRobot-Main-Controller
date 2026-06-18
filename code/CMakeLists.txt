@@ -48,8 +48,12 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     # pid.c
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/robot_app.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/pid.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/dualFOC_communication.c"
+    
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/control/pid.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/control/pid_wrapper.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/control/control.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/control/controllers.c"
 
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/IO/mpu6050.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/IO/imu_handler.c"
@@ -60,7 +64,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/App"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/App/control"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/App/IO"  
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/App/config"  
 )
 
 # Add project symbols (macros)

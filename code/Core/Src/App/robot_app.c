@@ -1,6 +1,7 @@
 #include "robot_app.h"
 #include "config.h"
-#include "pid.h"
+#include "controllers.h"
+#include "control.h"
 #include "button.h"
 #include "imu_handler.h"
 #include "dualFOC_communication.h"
@@ -9,7 +10,26 @@
 #include <math.h>
 #include <stdio.h>
 
-const char* GetStateName(RobotState_t s) {
+////
+
+
+
+extern UART_HandleTypeDef MOT1_UART;
+extern volatile uint8_t loop_flag;
+extern FeedbackPacket_t motor_feedback_data; // Data from ESC
+
+Controller_t controller;
+ControlState_t control_state;
+
+static RobotState_t robot_state = STATE_STANDBY;
+static float target_angle = TARGET_ANGLE;
+static float angle = 0.0f;
+static float out_l = 0.0f;
+static float out_r = 0.0f;
+
+////
+
+static const char* GetStateName(RobotState_t s) {
   switch(s) {
     case STATE_INIT: return "INIT";
     case STATE_IDLE: return "IDLE";
@@ -20,35 +40,40 @@ const char* GetStateName(RobotState_t s) {
   }
 }
 
-PID_t pid;
+static void updateControlState(ControlState_t *state) {
+    state->pitch      = IMU_GetAngle();
+    // state->pitch_rate = IMU_GetPitchRate();
+    // state->yaw_rate   = IMU_GetYawRate();
 
-void RobotInit() {
-    IMU_Init(&pid);
+    // state->left_wheel_pos  = motor_feedback_data.motor1_pos;
+    // state->right_wheel_pos = motor_feedback_data.motor2_pos;
+    
+    // float left_vel  = motor_feedback_data.motor1_vel;
+    // float right_vel = motor_feedback_data.motor2_vel; 
+    
+    // state->velocity = (left_vel + right_vel) / 2.0f;
 }
 
-extern UART_HandleTypeDef MOT1_UART;
-extern volatile uint8_t loop_flag;
-extern FeedbackPacket_t motor_feedback_data; // Data from ESC1
+void RobotInit() {
+    IMU_Init();
 
-static RobotState_t robot_state = STATE_STANDBY;
-static float target_angle = TARGET_ANGLE;
-static float angle = 0.0f;
-static float output = 0.0f;
+    controlSystemInit(&controller);
+
+    controller.target_pitch = target_angle;
+}
 
 void RobotUpdate() {
     if (loop_flag) {    
       loop_flag = 0;
       // 1. Read IMU data
-      angle = IMU_GetAngle();
-      // if (fabsf(angle) <= 0.05) { // Target
-      //   angle = 0;
-      // }
+      updateControlState(&control_state);
+      angle = control_state.pitch;
 
       switch (robot_state) {
         case STATE_STANDBY:
             if (ButtonIsPressed()) {
-              pid_reset(&pid, angle);
-              output = 0.0f;
+              controlReset(&controller, &control_state);
+              out_l = 0.0f; out_r = 0.0f;
 
               send_motor_command(&MOT1_UART, CMD_START_INIT, 0, 0);
             }
@@ -85,10 +110,11 @@ void RobotUpdate() {
             break;
           }
 
-          // 2. Calculate PID
-          output = run_pid(&pid, angle, target_angle);      // convert values to motor commands (angle -> linear vel)
+          // 2. Calculate 
+          controlRun(&controller, &control_state, &out_l, &out_r);
+
           // 3. Send data to ESCs
-          send_motor_command(&MOT1_UART, CMD_SET_VAL, output, output);
+          send_motor_command(&MOT1_UART, CMD_SET_VAL, out_l, out_r);
 
           if (motor_feedback_data.status == CMD_ERROR) {
             robot_state = STATE_ERROR;
@@ -100,8 +126,8 @@ void RobotUpdate() {
 
         case STATE_FALLEN:
           send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
-          pid_reset(&pid, angle);
-          output = 0.0f;
+          controlReset(&controller, &control_state);
+          out_l = 0.0f; out_r = 0.0f;
 
           robot_state = STATE_STANDBY;
           break;
@@ -109,8 +135,8 @@ void RobotUpdate() {
         case STATE_ERROR:
             if (ButtonIsPressed()) {
               send_motor_command(&MOT1_UART, CMD_CLR_FLT, 0.0, 0.0);
-              pid_reset(&pid, angle);
-              output = 0.0f;
+              controlReset(&controller, &control_state);
+              out_l = 0.0f; out_r = 0.0f;
             }
 
             if (motor_feedback_data.status == CMD_CLR_FLT) {
@@ -120,8 +146,8 @@ void RobotUpdate() {
 
         default:
           send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
-          pid_reset(&pid, angle);
-          output = 0.0f;
+          controlReset(&controller, &control_state);
+          out_l = 0.0f; out_r = 0.0f;
           break;
       }       
 
@@ -134,6 +160,6 @@ void RobotLog() {
 
     if (HAL_GetTick() - last_debug_time >= DEBUG_TIME) {
       last_debug_time = HAL_GetTick();
-      printf("State: %s\tAngle: %.2f\tOutput2: %.2f\n\r", GetStateName(robot_state), angle, output);
+      printf("State: %s\tAngle: %.2f\tOutput1: %.2f\tOutput2: %.2f\n\r", GetStateName(robot_state), angle, out_l, out_r);
     }
 }

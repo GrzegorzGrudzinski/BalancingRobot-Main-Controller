@@ -1,6 +1,8 @@
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
+#include "control.h" // for controller types
+
 //======================
 //  Hardware
 //======================
@@ -37,6 +39,8 @@
 //======================
 //  Balancing
 //======================
+#define CONTROLLER  CTRL_TYPE_PID
+
 #define TARGET_ANGLE  0.0f;
 
 #define MAX_ANGLE   60.0f
