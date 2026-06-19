@@ -45,20 +45,18 @@ static void updateControlState(ControlState_t *state) {
     // state->pitch_rate = IMU_GetPitchRate();
     // state->yaw_rate   = IMU_GetYawRate();
 
-    // state->left_wheel_pos  = motor_feedback_data.motor1_pos;
-    // state->right_wheel_pos = motor_feedback_data.motor2_pos;
+    state->left_wheel_pos  = motor_feedback_data.motor1_pos;
+    state->right_wheel_pos = motor_feedback_data.motor2_pos;
     
-    // float left_vel  = motor_feedback_data.motor1_vel;
-    // float right_vel = motor_feedback_data.motor2_vel; 
+    float left_vel  = motor_feedback_data.motor1_vel;
+    float right_vel = motor_feedback_data.motor2_vel; 
     
-    // state->velocity = (left_vel + right_vel) / 2.0f;
+    state->velocity = (left_vel + right_vel) / 2.0f;
 }
 
 void RobotInit() {
     IMU_Init();
-
     controlSystemInit(&controller);
-
     controller.target_pitch = target_angle;
 }
 

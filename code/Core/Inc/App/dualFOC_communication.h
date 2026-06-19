@@ -12,12 +12,14 @@ typedef struct __attribute__((packed)) {
     uint8_t checksum;    // XOR 
 } MotorPacket_t;
 
-// Feedback frame (1 + 1 + 4 + 4 + 1 = 11 bytes)
+// Feedback frame (1 + 1 + 4 + 4 + 4 + 4 + 1 = 19 bytes)
 typedef struct __attribute__((packed)) {
     uint8_t   startByte;    // 0xBB
     uint8_t   status;       //
-    float value1;
-    float value2;
+    float motor1_vel;           // mot 1 speed
+    float motor2_vel;           // mot 2 speed
+    float motor1_pos;           // mot 1 position
+    float motor2_pos;           // mot 2 position
     uint8_t   checksum;     // XOR
 } FeedbackPacket_t; // from motor
 
