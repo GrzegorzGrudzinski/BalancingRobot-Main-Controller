@@ -59,7 +59,18 @@ void IMU_Init() {
   HAL_Delay(50);
 }
 
+void IMU_Update(void) {
+  MPU6050_Read_All(&IMU_I2C, &MPU6050);
+}
+
 float IMU_GetAngle(void) {
-    MPU6050_Read_All(&IMU_I2C, &MPU6050);
     return MPU6050.KalmanAngleX - offset;
+}
+
+float IMU_GetPitchRate(void) {
+    return MPU6050.Gx;
+}
+
+float IMU_GetYawRate(void) {
+    return MPU6050.Gy;
 }

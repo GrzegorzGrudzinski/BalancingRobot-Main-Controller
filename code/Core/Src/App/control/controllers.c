@@ -5,14 +5,14 @@
 
 #if CONTROLLER == CTRL_TYPE_PID
     #include "pid.h"
-
+    
     static PID_t pid;
 // #elif CONTROLLER ==
-
+    
 #endif
-
-void controlSystemInit (Controller_t* ctrl) {
-#if CONTROLLER == CTRL_TYPE_PID
+    
+    void controlSystemInit (Controller_t* ctrl) {
+        #if CONTROLLER == CTRL_TYPE_PID
     PID_Config_t pid_cfg = {
       .Kp = PID_KP,
       .Ki = PID_KI,
@@ -25,7 +25,7 @@ void controlSystemInit (Controller_t* ctrl) {
     pidInit(&pid, &pid_cfg); 
     controlInit(ctrl, CTRL_TYPE_PID, (void*)&pid);
 
-// #elif CONTROLLER ==
+// #elif CONTROLLER == 
 
 #endif
 

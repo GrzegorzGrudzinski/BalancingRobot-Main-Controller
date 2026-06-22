@@ -6,6 +6,9 @@
 #include "mpu6050.h"
 
 void  IMU_Init();
+void  IMU_Update(void);
 float IMU_GetAngle(void);
+float IMU_GetPitchRate(void);
+float IMU_GetYawRate(void);
 
 #endif

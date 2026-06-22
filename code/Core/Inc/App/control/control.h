@@ -5,19 +5,9 @@
 #ifndef CONTROL_H_
 #define CONTROL_H_
 
+#include "control_state.h"
+
 #include <stdint.h>
-
-typedef struct
-{
-    float pitch;
-    float pitch_rate;
-    float yaw_rate;
-    float velocity;
-    float left_wheel_pos;
-    float right_wheel_pos;
-    
-} ControlState_t;
-
 
 typedef enum
 {

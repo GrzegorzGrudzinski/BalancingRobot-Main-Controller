@@ -1,9 +1,10 @@
 #include "robot_app.h"
 #include "config.h"
 #include "controllers.h"
+#include "control_state.h"
 #include "control.h"
-#include "button.h"
 #include "imu_handler.h"
+#include "button.h"
 #include "dualFOC_communication.h"
 
 #include <stdint.h>
@@ -38,20 +39,6 @@ static const char* GetStateName(RobotState_t s) {
     case STATE_ERROR: return "ERROR";
     default: return "UNKNOWN";
   }
-}
-
-static void updateControlState(ControlState_t *state) {
-    state->pitch      = IMU_GetAngle();
-    // state->pitch_rate = IMU_GetPitchRate();
-    // state->yaw_rate   = IMU_GetYawRate();
-
-    state->left_wheel_pos  = motor_feedback_data.motor1_pos;
-    state->right_wheel_pos = motor_feedback_data.motor2_pos;
-    
-    float left_vel  = motor_feedback_data.motor1_vel;
-    float right_vel = motor_feedback_data.motor2_vel; 
-    
-    state->velocity = (left_vel + right_vel) / 2.0f;
 }
 
 void RobotInit() {

@@ -7,6 +7,10 @@
 //  Hardware
 //======================
 
+#define WHEEL_RADIUS  0.005f
+#define ROBOT_WIDTH   0.020f
+#define ROBOT_HEIGHT  0.020f
+
 /*
   STM PA2 -> TX   ESP -> 16 (RX)  
   STM PA3 -> RX   ESP -> 17 (TX) (czarne)
