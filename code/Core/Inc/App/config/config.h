@@ -41,20 +41,52 @@
 #define DEBUG_TIME 500
 
 //======================
-//  Balancing
+//  Control settings
 //======================
-#define CONTROLLER  CTRL_TYPE_PID
+#define CONTROLLER  CTRL_TYPE_CASCADE_PID
 
 #define TARGET_ANGLE  0.0f;
 
 #define MAX_ANGLE   60.0f
 
+//===============================
+//  PID CONTROLLER PARAMETERS
+//===============================
 #define PID_KP  0.5
 #define PID_KI  0.0
 #define PID_KD  0.0
 
 #define PID_MAX_OUT 1.0
 #define PID_MAX_I 1.0
+
+//===============================
+//  CASCADE PID CONTROLLER PARAMETERS
+//===============================
+
+// Position
+#define CASCADE_POS_KP 0.3f
+#define CASCADE_POS_KI 0.0f
+#define CASCADE_POS_KD 0.0f
+#define CASCADE_POS_MAX_OUT 0.5f 
+
+// Velocity
+#define CASCADE_VEL_KP 0.5f
+#define CASCADE_VEL_KI 2.0f
+#define CASCADE_VEL_KD 0.0f
+#define CASCADE_VEL_MAX_OUT 10.0f
+
+// Pitch Angle
+#define CASCADE_PITCH_KP 10.0f
+#define CASCADE_PITCH_KI 0.0f
+#define CASCADE_PITCH_KD 0.5f
+#define CASCADE_PITCH_MAX_OUT 1.0f 
+
+// Yaw Angle
+#define CASCADE_YAW_KP 0.1f
+#define CASCADE_YAW_KI 0.0f
+#define CASCADE_YAW_KD 0.0f
+#define CASCADE_YAW_MAX_OUT 1.0f 
+
 
 //======================
 //  Calibration

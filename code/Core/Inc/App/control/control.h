@@ -9,11 +9,6 @@
 
 #include <stdint.h>
 
-typedef enum
-{
-    CTRL_TYPE_PID
-} ControllerType_e;
-
 typedef struct Controller_t Controller_t;
 
 typedef void (*CtrlInitFunct_t) (Controller_t *ctrl, void* config_data);
@@ -39,8 +34,9 @@ struct Controller_t
     float target_pos;
 };
 
-void controlInit (Controller_t *ctrl, ControllerType_e ctrl_type, void* config_data);
-void controlRun  (Controller_t *ctrl, const ControlState_t *state, float* out_l, float* out_r);
+void controlInit (Controller_t *ctrl, void* config_data);
+void controlRun  (Controller_t *ctrl, const ControlState_t *state, 
+                  float* out_l, float* out_r);
 void controlReset(Controller_t *ctrl, const ControlState_t *state);
 
 #endif /* CONTROL_H_ */

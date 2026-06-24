@@ -30,5 +30,8 @@ void PID_RunFunct (Controller_t *ctrl, const ControlState_t *state, float* out_l
 
 void PID_ResetFunct (Controller_t *ctrl, const ControlState_t *state) {
     PID_t* pid = (PID_t*)ctrl->config_data;
-    pid_reset(pid, state->pitch);
+    
+    if (pid != NULL) {
+        pid_reset(pid, state->pitch);
+    }
 }

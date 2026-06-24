@@ -11,7 +11,7 @@ extern FeedbackPacket_t motor_feedback_data;
 
 void updateControlState(ControlState_t *state) {
     IMU_Update();
-    state->pitch      = IMU_GetAngle();
+    state->pitch      = IMU_GetPitchAngle();
     state->pitch_rate = IMU_GetPitchRate();
     state->yaw_rate   = IMU_GetYawRate();
 
@@ -24,5 +24,5 @@ void updateControlState(ControlState_t *state) {
     state->velocity = (left_vel + right_vel)*0.5f ;
     state->position = (state->left_wheel_pos + state->right_wheel_pos) * 0.5f;
 
-    state->yaw_angle = (state->right_wheel_pos - state->left_wheel_pos) / (ROBOT_WIDTH);
+    state->yaw = (state->right_wheel_pos - state->left_wheel_pos) / (ROBOT_WIDTH);
 }

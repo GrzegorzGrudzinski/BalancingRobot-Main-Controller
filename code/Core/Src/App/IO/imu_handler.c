@@ -63,7 +63,7 @@ void IMU_Update(void) {
   MPU6050_Read_All(&IMU_I2C, &MPU6050);
 }
 
-float IMU_GetAngle(void) {
+float IMU_GetPitchAngle(void) {
     return MPU6050.KalmanAngleX - offset;
 }
 
