@@ -200,6 +200,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   } // if USART2
 }
 
+// USB RX 
+void USB_CDC_RxHandler(uint8_t* Buf, uint32_t Len)
+{
+	CDC_Transmit_FS(Buf, Len);
+}
+
 
 /* USER CODE END 4 */
 
