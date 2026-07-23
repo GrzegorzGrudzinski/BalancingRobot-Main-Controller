@@ -23,7 +23,7 @@ typedef struct __attribute__((packed)) {
     uint8_t   checksum;     // XOR
 } FeedbackPacket_t; // from motor
 
-typedef enum {
+typedef enum CommandType_t{
     CMD_HELLO_MOTOR  = 0xFA, // HELLO FROM MOTOR
     CMD_HELLO_MASTER = 0xAF, // HELLO FROM MASTER
     CMD_START_INIT   = 0xDD, // Start init on motor driver
@@ -35,6 +35,18 @@ typedef enum {
     CMD_RESET        = 0x51, // Reset     
     CMD_ERROR        = 0x60  // Error
 } CommandType_t;
+
+typedef enum {
+    ERR_OK,
+    ERR_INIT,
+    ERR_COMMUNICATION,
+    ERR_INV_COMMAND,
+    ERR_IS_NAN,
+    ERR_COM_TIMEOUT,
+    ERR_MOTOR_STALL,   
+    ERR_DESYNC,        
+    ERR_OPPOSITE_SPIN    
+} error_states_t;
 
 extern FeedbackPacket_t motor_feedback_data;
 extern uint8_t rxRawBuffer[];
