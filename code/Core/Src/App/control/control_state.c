@@ -15,6 +15,8 @@ void updateControlState(ControlState_t *state) {
     state->pitch_rate = IMU_GetPitchRate();
     state->yaw_rate   = IMU_GetYawRate();
 
+    // todo: disable irq ??
+
     state->left_wheel_pos  = motor_feedback_data.motor1_pos * WHEEL_RADIUS;
     state->right_wheel_pos = motor_feedback_data.motor2_pos * WHEEL_RADIUS;
     

@@ -7,9 +7,9 @@
 //  Hardware
 //======================
 
-#define WHEEL_RADIUS  0.005f
-#define ROBOT_WIDTH   0.020f
-#define ROBOT_HEIGHT  0.020f
+#define WHEEL_RADIUS  0.05f
+#define ROBOT_WIDTH   0.16f
+#define ROBOT_HEIGHT  0.175f  // wheels center to the top: 0.15f
 
 /*
   STM PA2 -> TX   ESP -> 16 (RX)  
@@ -64,25 +64,25 @@
 //===============================
 
 // Position
-#define CASCADE_POS_KP 0.3f
+#define CASCADE_POS_KP 0.0f // 0.3f
 #define CASCADE_POS_KI 0.0f
 #define CASCADE_POS_KD 0.0f
 #define CASCADE_POS_MAX_OUT 0.5f 
 
 // Velocity
-#define CASCADE_VEL_KP 0.5f
-#define CASCADE_VEL_KI 2.0f
+#define CASCADE_VEL_KP 0.0f // 0.5f
+#define CASCADE_VEL_KI 0.0f // 2.0f
 #define CASCADE_VEL_KD 0.0f
 #define CASCADE_VEL_MAX_OUT 10.0f
 
 // Pitch Angle
-#define CASCADE_PITCH_KP 10.0f
+#define CASCADE_PITCH_KP 2.0f
 #define CASCADE_PITCH_KI 0.0f
-#define CASCADE_PITCH_KD 0.5f
+#define CASCADE_PITCH_KD 0.0f
 #define CASCADE_PITCH_MAX_OUT 1.0f 
 
 // Yaw Angle
-#define CASCADE_YAW_KP 0.1f
+#define CASCADE_YAW_KP 0.0f // 0.1f
 #define CASCADE_YAW_KI 0.0f
 #define CASCADE_YAW_KD 0.0f
 #define CASCADE_YAW_MAX_OUT 1.0f 

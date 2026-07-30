@@ -13,8 +13,8 @@ typedef struct
     float pitch_rate;
     float yaw;
     float yaw_rate;
-    float velocity;
     float position;
+    float velocity;
     float left_wheel_pos;
     float right_wheel_pos;
 } ControlState_t;
