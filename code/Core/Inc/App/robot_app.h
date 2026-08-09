@@ -2,7 +2,7 @@
 #define ROBOT_APP_H
 
 #include "main.h"
-
+#include "pc_telemetry.h"
 //======================
 //  State machine
 //======================
@@ -21,7 +21,7 @@ typedef enum {
 //======================
 
 void RobotInit(void);
-void RobotUpdate(void);
-void RobotLog(void);
+TelemetryPacket_t* RobotUpdate(void);
+// void RobotLog(void);
 
 #endif

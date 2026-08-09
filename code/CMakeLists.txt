@@ -46,9 +46,9 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
-    # pid.c
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/robot_app.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/dualFOC_communication.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/communication/dualFOC_communication.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/communication/pc_telemetry.c"
     
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/control/pid.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/control/pid_wrapper.c"
@@ -66,6 +66,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/App"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/App/control"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/App/communication"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/App/IO"  
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/App/config"  
 )
