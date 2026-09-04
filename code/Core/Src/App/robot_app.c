@@ -1,3 +1,7 @@
+/*
+  robot_app.c
+*/
+
 #include "robot_app.h"
 #include "config.h"
 #include "controllers.h"
@@ -29,18 +33,20 @@ static float angle = 0.0f;
 static float out_l = 0.0f;
 static float out_r = 0.0f;
 
+static TelemetryPacket_t telemetry_packet;
+
 ////
 
-static const char* GetStateName(RobotState_t s) {
-  switch(s) {
-    case STATE_INIT: return "INIT";
-    case STATE_IDLE: return "IDLE";
-    case STATE_BALANCING: return "BALANCING";
-    case STATE_FALLEN: return "FALLEN";
-    case STATE_ERROR: return "ERROR";
-    default: return "UNKNOWN";
-  }
-}
+// static const char* GetStateName(RobotState_t s) {
+//   switch(s) {
+//     case STATE_INIT: return "INIT";
+//     case STATE_IDLE: return "IDLE";
+//     case STATE_BALANCING: return "BALANCING";
+//     case STATE_FALLEN: return "FALLEN";
+//     case STATE_ERROR: return "ERROR";
+//     default: return "UNKNOWN";
+//   }
+// }
 
 void RobotInit() {
     IMU_Init();
@@ -141,23 +147,19 @@ TelemetryPacket_t* RobotUpdate() {
 
       ButtonClear(); // clear button memory
 
-      // 
-      if (motor_feedback_data.status == CMD_ERROR) {
-        return* create_telemetry_packet(
-          robot_state, 
-          (float)motor_feedback_data.motor1_vel, // ERR (Slave)
-          (float)motor_feedback_data.motor2_vel, // RCVD CMD
-          (float)motor_feedback_data.motor1_pos, // 
-          (float)motor_feedback_data.motor2_pos  // 
-          
-        )
-      }
-      return* create_telemetry_packet(
-        robot_state,
-        angle, // yaw
-        angle, // roll
-        out_l,
-        out_r
-      )
-    }
+      // TODO: add config info at startup (eg. return startup-specific val)
+      telemetry_packet = create_telemetry_packet(
+        robot_state,  // robot_status 
+        motor_feedback_data.status, // motor_status
+        control_state.pitch,  // angle_pitch
+        control_state.yaw,    // angle_yaw
+        motor_feedback_data.motor1_vel,
+        motor_feedback_data.motor1_pos,
+        motor_feedback_data.motor1_pos, // mot1_A
+        motor_feedback_data.motor2_vel,
+        motor_feedback_data.motor2_pos,
+        motor_feedback_data.motor2_pos // mot2_A
+      );
+    } // if (loop_flag)
+    return &telemetry_packet;
 }
