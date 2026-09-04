@@ -20,20 +20,14 @@ void pidInit (PID_t *pid, const PID_Config_t* config)
     pid->timeSample = config->timeSample; // 10 -> 100Hz, 5->200Hz  // + (uint32_t)(uwTickFreq)
     pid->prevTime = _getTime();
 
-    if (pid->Ki > 0) {
-        pid->max_sum = config->max_i / config->Ki;
-    } else {
-        pid->max_sum = 0;
-    } 
+    pid->max_i = config->max_i;
     pid->max_output = config->max_output;
     
     // Initialize state variables
     pid->error = 0.0f;
     pid->error_sum = 0.0f;
     pid->lastPos = 0.0f;
-
     pid->output = 0.0f;
-    
 }
 
 // run_pid
@@ -50,13 +44,19 @@ float run_pid(PID_t *pid, float currVal, float setPoint) {
         P = pid->error * pid->Kp;
         
         pid->error_sum += pid->error*dt;
-        if (pid->error_sum > pid->max_sum) 
-            pid->error_sum = pid->max_sum;
-        else if (pid->error_sum < -pid->max_sum) 
-            pid->error_sum = -pid->max_sum;
+        // if (pid->error_sum > pid->max_sum) 
+        //     pid->error_sum = pid->max_sum;
+        // else if (pid->error_sum < -pid->max_sum) 
+        //     pid->error_sum = -pid->max_sum;
         I = pid->error_sum* pid->Ki;
-        // if (pid->I > pid->max_i) pid->I = pid->max_i;
-        // else if (pid->I < -pid->max_i) pid->I = -pid->max_i;
+        if (I > pid->max_i) {
+            I = pid->max_i;
+            if (pid->Ki != 0.0f) pid->error_sum = I / pid->Ki;
+        }
+        else if (I < -pid->max_i) {
+            I = -pid->max_i;
+            if (pid->Ki != 0.0f) pid->error_sum = I / pid->Ki;
+        }
         
         float dposition = currVal-pid->lastPos;
         D = -pid->Kd * (dposition/dt); // position change

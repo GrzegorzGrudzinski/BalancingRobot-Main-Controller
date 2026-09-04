@@ -23,7 +23,7 @@ typedef struct
     float Kd;
 
     float max_output;
-    float max_sum;
+    float max_i;
 
     float error;
     float error_sum;
