@@ -21,6 +21,8 @@ TelemetryPacket_t create_telemetry_packet
     packet.startByte = 0xCC;
     packet.robot_status = robot_status;
     packet.motor_status = motor_status;
+    packet.angle_pitch = angle_pitch;
+    packet.angle_yaw = angle_yaw;
     packet.mot1_vel = mot1_vel;
     packet.mot1_pos = mot1_pos;
     packet.mot1_A   = mot1_A;

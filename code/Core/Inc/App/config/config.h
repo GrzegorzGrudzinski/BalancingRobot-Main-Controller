@@ -38,7 +38,7 @@
 #define ONE_SEC     ( 1000 / LOOP_TIME ) // 
 #define HALF_SEC    (  500 / LOOP_TIME ) // 
 
-#define DEBUG_TIME 500
+#define DEBUG_TIME 50 // 500
 
 //======================
 //  Control settings
@@ -67,19 +67,19 @@
 #define CASCADE_POS_KP 0.0f // 0.3f
 #define CASCADE_POS_KI 0.0f
 #define CASCADE_POS_KD 0.0f
-#define CASCADE_POS_MAX_OUT 0.5f 
+#define CASCADE_POS_MAX_OUT 0.5f  // velocity 
 
 // Velocity
-#define CASCADE_VEL_KP 0.0f // 0.5f
-#define CASCADE_VEL_KI 0.0f // 2.0f
+#define CASCADE_VEL_KP 0.0f // 0.50f // 0.5f
+#define CASCADE_VEL_KI 0.0f // 2.0f // 2.0f
 #define CASCADE_VEL_KD 0.0f
-#define CASCADE_VEL_MAX_OUT 10.0f
+#define CASCADE_VEL_MAX_OUT 10.0f // angle 
 
 // Pitch Angle
-#define CASCADE_PITCH_KP 2.0f
+#define CASCADE_PITCH_KP 10.0 // 2.0f
 #define CASCADE_PITCH_KI 0.0f
-#define CASCADE_PITCH_KD 0.0f
-#define CASCADE_PITCH_MAX_OUT 1.0f 
+#define CASCADE_PITCH_KD 0.80f //0.4f
+#define CASCADE_PITCH_MAX_OUT 3.0f  // motors max input
 
 // Yaw Angle
 #define CASCADE_YAW_KP 0.0f // 0.1f

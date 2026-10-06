@@ -52,7 +52,8 @@ void IMU_Init() {
     }
     // HAL_Delay(1);
   }
-  offset = offset_sum / (float)calib_ticks;
+  // offset = offset_sum / (float)calib_ticks;
+  offset = 0;
   printf("Offset calibration complete. Offset = %.2f deg\r\n", offset);
   
   loop_flag = 0;

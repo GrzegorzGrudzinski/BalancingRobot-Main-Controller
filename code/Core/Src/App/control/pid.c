@@ -31,14 +31,53 @@ void pidInit (PID_t *pid, const PID_Config_t* config)
 }
 
 // run_pid
-float run_pid(PID_t *pid, float currVal, float setPoint) {
+float run_pid_rate(PID_t *pid, float currVal, float rateVal, float setPoint) {
     uint32_t currentTime = _getTime();
     uint32_t timeChange = (currentTime - pid->prevTime);
 
     if ( timeChange >= pid->timeSample ) {
         pid->error = setPoint-currVal;
 
-        float dt = (float)timeChange/1000.0f; // convert to seconds
+        float dt = (float)pid->timeSample / 1000.0f; // convert to seconds
+        float P,I,D;
+
+        P = pid->error * pid->Kp;
+        
+        pid->error_sum += pid->error*dt;
+
+        I = pid->error_sum* pid->Ki;
+        if (I > pid->max_i) {
+            I = pid->max_i;
+            if (pid->Ki != 0.0f) pid->error_sum = I / pid->Ki;
+        }
+        else if (I < -pid->max_i) {
+            I = -pid->max_i;
+            if (pid->Ki != 0.0f) pid->error_sum = I / pid->Ki;
+        }
+        
+        D = -pid->Kd * rateVal; 
+        
+        pid->output = P+I+D;
+        
+        if (pid->output > pid->max_output) pid->output = pid->max_output;
+        else if (pid->output < -pid->max_output) pid->output = -pid->max_output;
+
+        // Update state for next iteration
+        pid->lastPos = currVal;
+        pid->prevTime += pid->timeSample;
+    }
+    return pid->output;
+}
+
+
+float run_pid_dt(PID_t *pid, float currVal, float setPoint) {
+    uint32_t currentTime = _getTime();
+    uint32_t timeChange = (currentTime - pid->prevTime);
+
+    if ( timeChange >= pid->timeSample ) {
+        pid->error = setPoint-currVal;
+
+        float dt = (float)pid->timeSample / 1000.0f; // convert to seconds
         float P,I,D;
 
         P = pid->error * pid->Kp;
@@ -60,7 +99,7 @@ float run_pid(PID_t *pid, float currVal, float setPoint) {
         
         float dposition = currVal-pid->lastPos;
         D = -pid->Kd * (dposition/dt); // position change
-        
+        // D = -pid->Kd * rateVal; // position change
         
         pid->output = P+I+D;
         
@@ -69,10 +108,12 @@ float run_pid(PID_t *pid, float currVal, float setPoint) {
 
         // Update state for next iteration
         pid->lastPos = currVal;
-        pid->prevTime = currentTime;
+        pid->prevTime += pid->timeSample;
     }
     return pid->output;
 }
+
+
 
 void pid_reset(PID_t *pid, float currnet_pos) {
     pid->error = 0.0f;

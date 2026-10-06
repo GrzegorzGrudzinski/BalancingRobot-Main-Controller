@@ -20,7 +20,7 @@ void PID_RunFunct (Controller_t *ctrl, const ControlState_t *state, float* out_l
         return;
     }
 
-    float output = run_pid(pid, state->pitch, ctrl->target_pitch);
+    float output = run_pid_rate(pid, state->pitch, state->pitch_rate, ctrl->target_pitch);
 
     *out_l = output;
     *out_r = output;

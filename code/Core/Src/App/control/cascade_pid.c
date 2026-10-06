@@ -4,7 +4,7 @@
 
 #include "cascade_pid.h"
 #include "pid.h"
-#include "pid_wrapper.h"
+// #include "pid_wrapper.h"
 
 void CASCADE_PID_InitFunct  (Controller_t *ctrl, void* config_data) {
 
@@ -21,18 +21,18 @@ void CASCADE_PID_RunFunct (Controller_t *ctrl, const ControlState_t *state, floa
     }
 
     // Position loop
-    float target_velocity = run_pid(&cascade->pid_position, state->position, ctrl->target_pos);
+    float target_velocity = run_pid_rate(&cascade->pid_position, state->position, state->velocity, ctrl->target_pos);
     float velocity_final_target = target_velocity; // todo rc control (+ set_velocity)
     
     // Velocity loop
-    float target_pitch = run_pid(&cascade->pid_velocity , state->velocity, velocity_final_target);
+    float target_pitch = run_pid_rate(&cascade->pid_velocity , state->velocity, 0.0f, velocity_final_target);
     float pitch_final_target = ctrl->target_pitch + target_pitch;
     
     // Pitch loop
-    float output = run_pid(&cascade->pid_pitch_angle, state->pitch, pitch_final_target);
+    float output = run_pid_rate(&cascade->pid_pitch_angle, state->pitch, state->pitch_rate, pitch_final_target);
 
     // Yaw loop
-    // float yaw_offet = run_pid(&cascade->pid_yaw_angle, state->yaw, ctrl->target_yaw);
+    // float yaw_offet = run_pid_rate(&cascade->pid_yaw_angle, state->yaw, state->yaw_rate, ctrl->target_yaw);
 
     // Output
     *out_l = output;  // - yaw_offset

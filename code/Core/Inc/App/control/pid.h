@@ -35,7 +35,8 @@ typedef struct
 } PID_t;
 
 void pidInit (PID_t *pid, const PID_Config_t* config);
-float run_pid(PID_t *pid, float currVal, float setPoint);
+float run_pid_rate(PID_t *pid, float currVal, float rateVal, float setPoint);
+float run_pid_dt(PID_t *pid, float currVal, float setPoint);
 void pid_reset(PID_t *pid, float current_pos);
 
 #endif /* PID_H_ */
