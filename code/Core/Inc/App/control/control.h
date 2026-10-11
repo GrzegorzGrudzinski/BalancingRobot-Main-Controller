@@ -12,12 +12,12 @@
 typedef struct Controller_t Controller_t;
 
 typedef void (*CtrlInitFunct_t) (Controller_t *ctrl, void* config_data);
-typedef void (*CtrlRunFunct_t)  (Controller_t *ctrl, const ControlState_t *state, float* out_l, float* out_r);
-typedef void (*CtrlResetFunct_t)(Controller_t *ctrl, const ControlState_t *state);
+typedef void (*CtrlRunFunct_t)  (Controller_t *ctrl, float* out_l, float* out_r);
+typedef void (*CtrlResetFunct_t)(Controller_t *ctrl);
 
 struct Controller_t
 {
-    ControllerType_e ctrl_type;
+    uint8_t ctrl_type;
     void* config_data;
     CtrlInitFunct_t init;
     CtrlRunFunct_t run;
@@ -25,18 +25,16 @@ struct Controller_t
 
     uint32_t timeSample;
 
-    float curr_pitch;
-    float curr_yaw;
-    float curr_pos;
-    
-    float target_pitch;
-    float target_yaw;
-    float target_pos;
+    void* control_data; // data from controller (eg. PID values)
+    ControlState_t observed_state; // current observed values
+    TargetState_t target_state; // target values
 };
 
 void controlInit (Controller_t *ctrl, void* config_data);
-void controlRun  (Controller_t *ctrl, const ControlState_t *state, 
-                  float* out_l, float* out_r);
-void controlReset(Controller_t *ctrl, const ControlState_t *state);
+void controlRun  (Controller_t *ctrl, float* out_l, float* out_r);
+void controlReset(Controller_t *ctrl);
 
 #endif /* CONTROL_H_ */
+
+
+

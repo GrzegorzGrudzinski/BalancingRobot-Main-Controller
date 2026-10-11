@@ -11,7 +11,7 @@
 #include "pid.h"
 
 void PID_InitFunct (struct Controller_t *ctrl, void* config_data);
-void PID_RunFunct  (Controller_t *ctrl, const ControlState_t *state, float* out_l, float* out_r);
-void PID_ResetFunct(struct Controller_t *ctrl, const ControlState_t *state);
+void PID_RunFunct  (Controller_t *ctrl, float* out_l, float* out_r);
+void PID_ResetFunct(struct Controller_t *ctrl);
 
 #endif /* PID_WRAPPER_H_ */

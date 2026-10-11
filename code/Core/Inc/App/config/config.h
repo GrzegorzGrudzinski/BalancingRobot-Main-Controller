@@ -1,15 +1,15 @@
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
-#include "control.h" // for controller types
+// #include "control.h" // for controller types
 
 //======================
 //  Hardware
 //======================
 
-#define WHEEL_RADIUS  0.05f
-#define ROBOT_WIDTH   0.16f
-#define ROBOT_HEIGHT  0.175f  // wheels center to the top: 0.15f
+#define WHEEL_RADIUS  0.055f  //
+#define ROBOT_WIDTH   0.200f  // .200 wheel-wheel; 0.160 frame
+#define ROBOT_HEIGHT  0.205f  // .205 floor to top; wheels center to the top: 0.155f
 
 /*
   STM PA2 -> TX   ESP -> 16 (RX)  
@@ -43,43 +43,45 @@
 //======================
 //  Control settings
 //======================
-#define CONTROLLER  CTRL_TYPE_CASCADE_PID
+#define CTRL_TYPE_PID          0
+#define CTRL_TYPE_CASCADE_PID  1
+#define CONTROLLER             CTRL_TYPE_CASCADE_PID
 
-#define TARGET_ANGLE  0.0f;
+#define TARGET_ANGLE  0.0f
 
-#define MAX_ANGLE   60.0f
+#define MAX_ANGLE   40.0f
 
 //===============================
 //  PID CONTROLLER PARAMETERS
 //===============================
-#define PID_KP  0.5
-#define PID_KI  0.0
-#define PID_KD  0.0
+#define PID_KP  0.5f
+#define PID_KI  0.0f
+#define PID_KD  0.0f
 
-#define PID_MAX_OUT 1.0
-#define PID_MAX_I 1.0
+#define PID_MAX_OUT 1.0f
+#define PID_MAX_I ( 0.3f * PID_MAX_OUT )
 
 //===============================
 //  CASCADE PID CONTROLLER PARAMETERS
 //===============================
 
 // Position
-#define CASCADE_POS_KP 0.0f // 0.3f
+#define CASCADE_POS_KP 0.6f // 0.3f
 #define CASCADE_POS_KI 0.0f
 #define CASCADE_POS_KD 0.0f
-#define CASCADE_POS_MAX_OUT 0.5f  // velocity 
+#define CASCADE_POS_MAX_OUT 0.7f  // velocity 
 
 // Velocity
-#define CASCADE_VEL_KP 0.0f // 0.50f // 0.5f
-#define CASCADE_VEL_KI 0.0f // 2.0f // 2.0f
+#define CASCADE_VEL_KP 2.0f // 0.06f // 0.50f // 0.5f
+#define CASCADE_VEL_KI 0.50f // 2.0f // 2.0f
 #define CASCADE_VEL_KD 0.0f
-#define CASCADE_VEL_MAX_OUT 10.0f // angle 
+#define CASCADE_VEL_MAX_OUT 15.0f // angle 
 
 // Pitch Angle
-#define CASCADE_PITCH_KP 10.0 // 2.0f
+#define CASCADE_PITCH_KP 0.80f // 2.0f
 #define CASCADE_PITCH_KI 0.0f
-#define CASCADE_PITCH_KD 0.80f //0.4f
-#define CASCADE_PITCH_MAX_OUT 3.0f  // motors max input
+#define CASCADE_PITCH_KD 0.04f //0.4f
+#define CASCADE_PITCH_MAX_OUT 2.0f  // motors max input
 
 // Yaw Angle
 #define CASCADE_YAW_KP 0.0f // 0.1f

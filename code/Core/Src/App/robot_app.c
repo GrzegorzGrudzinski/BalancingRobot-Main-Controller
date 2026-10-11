@@ -5,10 +5,10 @@
 #include "robot_app.h"
 #include "config.h"
 #include "controllers.h"
-#include "control_state.h"
+// #include "control_state.h"
 #include "control.h"
 #include "imu_handler.h"
-#include "button.h"
+#include "IO/button.h"
 #include "dualFOC_communication.h"
 #include "pc_telemetry.h"
 
@@ -25,7 +25,9 @@ extern volatile uint8_t loop_flag;
 extern FeedbackPacket_t motor_feedback_data; // Data from ESC
 
 Controller_t controller;
-ControlState_t control_state;
+// ControlState_t control_state;
+#define  CONTROL_STATE controller.observed_state
+#define  TARGET_STATE controller.target_state
 
 static RobotState_t robot_state = STATE_STANDBY;
 static float target_angle = TARGET_ANGLE;
@@ -51,21 +53,21 @@ static TelemetryPacket_t telemetry_packet;
 void RobotInit() {
     IMU_Init();
     controlSystemInit(&controller);
-    controller.target_pitch = target_angle;
-    // controller.target_yaw = 
+    TARGET_STATE.target_pitch = target_angle;
+    // TARGET_STATE.target_yaw = target_yaw;
 }
 
 TelemetryPacket_t* RobotUpdate() {
     if (loop_flag) {    
       loop_flag = 0;
       // 1. Read IMU data
-      updateControlState(&control_state);
-      angle = control_state.pitch;
+      updateControlState(&CONTROL_STATE);
+      angle = CONTROL_STATE.pitch;
 
       switch (robot_state) {
         case STATE_STANDBY:
             if (ButtonIsPressed()) {
-              controlReset(&controller, &control_state);
+              controlReset(&controller);
               out_l = 0.0f; out_r = 0.0f;
 
               send_motor_command(&MOT1_UART, CMD_START_INIT, 0, 0);
@@ -105,11 +107,11 @@ TelemetryPacket_t* RobotUpdate() {
           }
 
           // 2. Calculate 
-          controlRun(&controller, &control_state, &out_l, &out_r);
+          controlRun(&controller, &out_l, &out_r);
 
           // 3. Send data to ESCs
           send_motor_command(&MOT1_UART, CMD_SET_VAL, out_l, out_r);
-
+          
           if (motor_feedback_data.status == CMD_ERROR) {
             robot_state = STATE_ERROR;
           }
@@ -120,7 +122,7 @@ TelemetryPacket_t* RobotUpdate() {
 
         case STATE_FALLEN:
           send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
-          controlReset(&controller, &control_state);
+          controlReset(&controller);
           out_l = 0.0f; out_r = 0.0f;
 
           robot_state = STATE_STANDBY;
@@ -129,7 +131,7 @@ TelemetryPacket_t* RobotUpdate() {
         case STATE_ERROR:
             if (ButtonIsPressed()) {
               send_motor_command(&MOT1_UART, CMD_CLR_FLT, 0.0, 0.0);
-              controlReset(&controller, &control_state);
+              controlReset(&controller);
               out_l = 0.0f; out_r = 0.0f;
             }
 
@@ -140,7 +142,7 @@ TelemetryPacket_t* RobotUpdate() {
 
         default:
           send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
-          controlReset(&controller, &control_state);
+          controlReset(&controller);
           out_l = 0.0f; out_r = 0.0f;
           break;
       }       
@@ -151,14 +153,14 @@ TelemetryPacket_t* RobotUpdate() {
       telemetry_packet = create_telemetry_packet(
         robot_state,  // robot_status 
         motor_feedback_data.status, // motor_status
-        control_state.pitch,  // angle_pitch
-        control_state.yaw,    // angle_yaw
+        CONTROL_STATE.pitch,  // angle_pitch
+        CONTROL_STATE.yaw,    // angle_yaw
         motor_feedback_data.motor1_vel,
         motor_feedback_data.motor1_pos,
-        motor_feedback_data.motor1_pos, // mot1_A
+        motor_feedback_data.motor1_A, // mot1_A
         motor_feedback_data.motor2_vel,
         motor_feedback_data.motor2_pos,
-        motor_feedback_data.motor2_pos // mot2_A
+        motor_feedback_data.motor2_A // mot2_A
       );
     } // if (loop_flag)
     return &telemetry_packet;

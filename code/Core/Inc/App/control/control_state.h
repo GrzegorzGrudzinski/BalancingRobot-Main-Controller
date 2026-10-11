@@ -19,11 +19,19 @@ typedef struct
     float right_wheel_pos;
 } ControlState_t;
 
-typedef enum
+typedef struct
 {
-    CTRL_TYPE_PID,
-    CTRL_TYPE_CASCADE_PID
-} ControllerType_e;
+    float target_pitch;
+    float target_yaw;
+    float target_position;
+    float target_velocity;
+} TargetState_t;
+
+// typedef enum
+// {
+//     CTRL_TYPE_PID,
+//     CTRL_TYPE_CASCADE_PID
+// } ControllerType_e;
 
 void updateControlState(ControlState_t *state);
 

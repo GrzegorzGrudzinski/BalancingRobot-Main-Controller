@@ -43,7 +43,7 @@ void controlSystemInit (Controller_t* ctrl) {
       .Ki = CASCADE_POS_KI,
       .Kd = CASCADE_POS_KD,
       .max_output = CASCADE_POS_MAX_OUT,
-      .max_i = CASCADE_POS_MAX_OUT,
+      .max_i = 0.3f * CASCADE_POS_MAX_OUT,
       .timeSample = LOOP_TIME
     };
     
@@ -52,7 +52,7 @@ void controlSystemInit (Controller_t* ctrl) {
         .Ki = CASCADE_VEL_KI,
         .Kd = CASCADE_VEL_KD,
         .max_output = CASCADE_VEL_MAX_OUT,
-        .max_i = CASCADE_VEL_MAX_OUT,
+        .max_i = 0.3f * CASCADE_VEL_MAX_OUT,
         .timeSample = LOOP_TIME
     };
 
@@ -61,7 +61,7 @@ void controlSystemInit (Controller_t* ctrl) {
       .Ki = CASCADE_PITCH_KI,
       .Kd = CASCADE_PITCH_KD,
       .max_output = CASCADE_PITCH_MAX_OUT,
-      .max_i = CASCADE_PITCH_MAX_OUT,
+      .max_i = 0.3f * CASCADE_PITCH_MAX_OUT,
       .timeSample = LOOP_TIME
     };    
 
@@ -83,7 +83,7 @@ void controlSystemInit (Controller_t* ctrl) {
     pidInit(&cascade.pid_position, &position_pid_cfg); 
     pidInit(&cascade.pid_velocity, &velocity_pid_cfg); 
     pidInit(&cascade.pid_pitch_angle, &pitch_pid_cfg); 
-    // pidInit(&cascade->pid_yaw_angle, &yaw_pid_cfg); 
+    // pidInit(&cascade.pid_yaw_angle, &yaw_pid_cfg); 
     controlInit(ctrl, (void*)&cascade);
 
 #endif

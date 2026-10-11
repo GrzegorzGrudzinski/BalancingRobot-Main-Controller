@@ -16,22 +16,30 @@ typedef struct
     uint32_t timeSample; // 
 } PID_Config_t;
 
+/*
+    struct for live PID calculations
+*/
 typedef struct
 {
+    
     float Kp;
     float Ki;
     float Kd;
-
+    
     float max_output;
     float max_i;
-
+    
+    uint32_t timeSample;
+    uint32_t prevTime;
+    
     float error;
     float error_sum;
     float lastPos;
     float output;
-
-    uint32_t timeSample;
-    uint32_t prevTime;
+    
+    float P;
+    float I;
+    float D;
 } PID_t;
 
 void pidInit (PID_t *pid, const PID_Config_t* config);
