@@ -6,6 +6,13 @@
 #include <stdio.h>
 #include <string.h>
 
+
+static uint8_t rxState_flag = 0; // 0 -looking for start byte, 1 - receiving data
+// volatile uint32_t uart_error_count = 0;
+
+void processRxReset(void) { rxState_flag = 0; }
+
+
 uint8_t calculate_checksum(void* data, size_t length) {
     if(length==0 ) return 0;
     
@@ -47,8 +54,6 @@ uint8_t rxRawBuffer[sizeof(FeedbackPacket_t)];
 volatile uint8_t rx_msg_recieved = 0;
 
 void processRxPacket (UART_HandleTypeDef *huart) {
-    static uint8_t rxState_flag = 0; // 0 -looking for start byte, 1 - receiving data
-
     if (rxState_flag == 0) {
       if (rxRawBuffer[0] == 0xBB) { // Start byte found
         rxState_flag = 1;

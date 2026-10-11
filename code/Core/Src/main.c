@@ -199,6 +199,15 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   } // if USART2
 }
 
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
+  if (huart->Instance == USART2) {
+    // uart_error_count++;
+    HAL_UART_AbortReceive(huart);          // clear HAL state and flags
+    processRxReset();
+    HAL_UART_Receive_IT(huart, rxRawBuffer, 1);
+  }
+}
+
 // USB RX 
 void USB_CDC_RxHandler(uint8_t* Buf, uint32_t Len)
 {

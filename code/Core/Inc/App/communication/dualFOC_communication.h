@@ -57,6 +57,6 @@ uint8_t calculate_checksum(void* data, size_t length);
 MotorPacket_t create_motor_packet(uint8_t command, float value1, float value2);
 void send_motor_command(UART_HandleTypeDef *huart, uint8_t command, float mot1_value, float mot2_value);
 void processRxPacket (UART_HandleTypeDef *huart);
-
+void processRxReset(void);
 
 #endif // DUALFOC_COMMUNICATION_H
