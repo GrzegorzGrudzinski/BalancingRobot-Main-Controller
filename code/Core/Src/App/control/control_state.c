@@ -7,9 +7,9 @@
 #include "imu_handler.h"
 #include "dualFOC_communication.h"
 
-extern FeedbackPacket_t motor_feedback_data;
+// extern FeedbackPacket_t motor_feedback_data;
 
-void updateControlState(ControlState_t *state) {
+void updateControlState(ControlState_t *state, const FeedbackPacket_t *fb) {
     IMU_Update();
     state->pitch      = IMU_GetPitchAngle();
     state->pitch_rate = IMU_GetPitchRate();
@@ -17,14 +17,14 @@ void updateControlState(ControlState_t *state) {
 
     // todo: disable irq ??
 
-    state->left_wheel_pos  = motor_feedback_data.motor1_pos * WHEEL_RADIUS;
-    state->right_wheel_pos = motor_feedback_data.motor2_pos * WHEEL_RADIUS;
+    state->left_wheel_pos  = fb->motor1_pos;
+    state->right_wheel_pos = fb->motor2_pos;
+
+    float left_vel  = fb->motor1_vel;
+    float right_vel = fb->motor2_vel;
     
-    float left_vel  = motor_feedback_data.motor1_vel * WHEEL_RADIUS;
-    float right_vel = motor_feedback_data.motor2_vel * WHEEL_RADIUS; 
-    
-    state->velocity = (left_vel + right_vel)*0.5f ;
-    state->position = (state->left_wheel_pos + state->right_wheel_pos) * 0.5f;
+    state->velocity = (left_vel + right_vel)* WHEEL_RADIUS*0.5f ;
+    state->position = (state->left_wheel_pos + state->right_wheel_pos)*WHEEL_RADIUS*0.5f;
 
     state->yaw = (state->right_wheel_pos - state->left_wheel_pos) / (ROBOT_WIDTH);
 }

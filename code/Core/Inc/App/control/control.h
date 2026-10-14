@@ -28,6 +28,8 @@ struct Controller_t
     void* control_data; // data from controller (eg. PID values)
     ControlState_t observed_state; // current observed values
     TargetState_t target_state; // target values
+
+    ControlDebug_t debug; // values of the last run
 };
 
 void controlInit (Controller_t *ctrl, void* config_data);

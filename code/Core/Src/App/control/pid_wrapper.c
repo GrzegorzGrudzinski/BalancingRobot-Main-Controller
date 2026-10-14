@@ -24,6 +24,13 @@ void PID_RunFunct (Controller_t *ctrl, float* out_l, float* out_r) {
 
     *out_l = output;
     *out_r = output;
+
+    //
+    ctrl->debug.pitch_setpoint = ctrl->target_state.target_pitch;
+    ctrl->debug.pitch_output   = output;
+    ctrl->debug.i_pitch        = pid->I;
+
+    ctrl->control_data = pid;
 }
 
 

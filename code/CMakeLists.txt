@@ -50,11 +50,14 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/communication/dualFOC_communication.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/communication/pc_telemetry.c"
     
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/diagnostics/diag.c"
+    
+
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/control/pid.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/control/cascade_pid.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/control/pid_wrapper.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/control/control.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/control/controllers.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/control/controllers_config.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/control/control_state.c"
 
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/IO/mpu6050.c"
@@ -70,6 +73,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/App/communication"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/App/IO"  
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/App/config"  
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/App/diagnostics"  
 )
 
 # Add project symbols (macros)

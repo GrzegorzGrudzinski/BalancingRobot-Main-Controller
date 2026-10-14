@@ -3,19 +3,28 @@
 
 #include "main.h"
 
-// Data frame (1 + 1 + 4 + 4 + 1 = 11 bytes)
+#define FRAME_SIZE 13
+// Data frame (1 + 1 + 2 + 4 + 4 + 1 = 13 bytes)
+// must be same as in motor driver
 typedef struct __attribute__((packed)) {
     uint8_t startByte;   // 0xAA
     uint8_t command;     // CMD_XX
+    uint16_t seq;        // +1 for every command send from master
     float   value1;      // 
     float   value2;      // 
     uint8_t checksum;    // XOR 
 } MotorPacket_t;
+_Static_assert(sizeof(MotorPacket_t) == FRAME_SIZE, "MotorPacket_t size mismatch with ESP32");
 
-// Feedback frame (1 + 1 + 6*4 + 1 = 27 bytes)
+#define FEEDBACK_FRAME_SIZE 32
+// Feedback frame (1 + 1 + 1 + 2 + 2+ 6*4 + 1 = 32 bytes)
+// must be same as in motor driver
 typedef struct __attribute__((packed)) {
     uint8_t   startByte; // 0xBB
-    uint8_t   status;    //
+    uint8_t   status;    // CMD_XX
+    uint8_t   error;     // from error_states_t 
+    uint16_t  rx_seq;    // seq from last processed command
+    uint16_t  tx_seq;    // +1 for every feedback frame
     float motor1_vel;    // mot 1 speed
     float motor1_pos;    // mot 1 position
     float motor1_A;      // mot 1 current
@@ -24,6 +33,8 @@ typedef struct __attribute__((packed)) {
     float motor2_A;      // mot 2 current
     uint8_t checksum;    // XOR
 } FeedbackPacket_t; // from motor
+_Static_assert(sizeof(FeedbackPacket_t) == FEEDBACK_FRAME_SIZE, "FeedbackPacket_t size mismatch with ESP32"); 
+
 
 typedef enum CommandType_t{
     CMD_HELLO_MOTOR  = 0xFA, // HELLO FROM MOTOR
@@ -48,13 +59,22 @@ typedef enum {
     ERR_MOTOR_STALL,   
     ERR_DESYNC,        
     ERR_OPPOSITE_SPIN    
-} error_states_t;
+} error_states_t; // must be same as in motor driver
 
 extern FeedbackPacket_t motor_feedback_data;
 extern uint8_t rxRawBuffer[];
 
+typedef struct {
+    uint16_t cmd_seq;    // seq ostatniej komendy wysłanej do ESP
+    uint16_t fb_age_us;  // wiek feedbacku w chwili snapshotu (nasycone 65535)
+    uint16_t rtt_us;     // ostatni czas komenda -> feedback (nasycone 65535)
+} MotorLinkInfo_t;
+
+// Atomic snapshot of the last feedback frame
+void MotorFeedbackSnapshot(FeedbackPacket_t *dst, MotorLinkInfo_t *link);
+
 uint8_t calculate_checksum(void* data, size_t length);
-MotorPacket_t create_motor_packet(uint8_t command, float value1, float value2);
+MotorPacket_t create_motor_packet(uint8_t command, float value1, float value2, uint16_t seq);
 void send_motor_command(UART_HandleTypeDef *huart, uint8_t command, float mot1_value, float mot2_value);
 void processRxPacket (UART_HandleTypeDef *huart);
 void processRxReset(void);

@@ -3,6 +3,8 @@
 */
 
 #include "imu_handler.h"
+#include "diag.h"
+
 #include <stdio.h>
 
 
@@ -60,8 +62,21 @@ void IMU_Init() {
   HAL_Delay(50);
 }
 
-void IMU_Update(void) {
-  MPU6050_Read_All(&IMU_I2C, &MPU6050);
+uint8_t IMU_Update(void) {
+  if (MPU6050_Read_All(&IMU_I2C, &MPU6050) != 0) {
+    diag.imu_error_count++;
+    return 1;
+  }
+  return 0;
+}
+
+void IMU_GetSample(IMU_Sample_t *s) {
+  s->ax = (float)MPU6050.Ax;
+  s->ay = (float)MPU6050.Ay;
+  s->az = (float)MPU6050.Az; 
+  s->gx = (float)MPU6050.Gx;
+  s->gy = (float)MPU6050.Gy;
+  s->gz = (float)MPU6050.Gz;
 }
 
 float IMU_GetPitchAngle(void) {

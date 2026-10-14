@@ -2,7 +2,7 @@
     controllers.c
 */
 
-#include "controllers.h"
+#include "controllers_config.h"
 #include "control.h"
 #include "config.h"
 

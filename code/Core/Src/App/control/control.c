@@ -7,6 +7,7 @@
 #include "control.h"
 
 #include <stddef.h> // for NULL 
+#include <string.h> // for memset
 
 void  controlInit (Controller_t *ctrl, void* config_data) {
     ctrl->config_data = config_data;
@@ -35,5 +36,7 @@ void controlReset(Controller_t *ctrl) {
     if (ctrl->reset != NULL) {
         ctrl->reset(ctrl);
     }
+    
+    memset(&ctrl->debug, 0, sizeof(ctrl->debug));
     // TODO: add ctrl->reset_target 
 }

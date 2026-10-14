@@ -21,15 +21,31 @@ void CASCADE_PID_RunFunct (Controller_t *ctrl, float* out_l, float* out_r) {
     }
 
     // Position loop
-    float target_velocity = run_pid_rate(&cascade->pid_position, ctrl->observed_state.position, ctrl->observed_state.velocity, ctrl->target_state.target_position);
+    float target_velocity = run_pid_rate(
+        &cascade->pid_position, 
+        ctrl->observed_state.position, 
+        ctrl->observed_state.velocity, 
+        ctrl->target_state.target_position
+    );
     float velocity_final_target = target_velocity; // todo rc control (+ set_velocity)
     
-    // Velocity loop
-    float target_pitch = run_pid_rate(&cascade->pid_velocity , ctrl->observed_state.velocity, 0.0f, velocity_final_target);
+    // Velocity loop 
+    float velocity_output = run_pid_rate( // minus 
+        &cascade->pid_velocity , 
+        ctrl->observed_state.velocity, 
+        0.0f, 
+        velocity_final_target
+    );
+    float target_pitch = -velocity_output;
     float pitch_final_target = ctrl->target_state.target_pitch + target_pitch;
     
     // Pitch loop
-    float output = run_pid_rate(&cascade->pid_pitch_angle, ctrl->observed_state.pitch, ctrl->observed_state.pitch_rate, pitch_final_target);
+    float output = run_pid_rate(
+        &cascade->pid_pitch_angle, 
+        ctrl->observed_state.pitch, 
+        ctrl->observed_state.pitch_rate, 
+        pitch_final_target
+    );
 
     // Yaw loop
     // float yaw_offet = run_pid_rate(&cascade->pid_yaw_angle, ctrl->observed_state.yaw, ctrl->observed_state.yaw_rate, ctrl->target_yaw);
@@ -38,6 +54,16 @@ void CASCADE_PID_RunFunct (Controller_t *ctrl, float* out_l, float* out_r) {
     *out_l = output;  // - yaw_offset
     *out_r = output;  // + yaw_offset
 
+
+    //  
+    ctrl->debug.position_output = target_velocity;
+    ctrl->debug.velocity_output = velocity_output;
+    ctrl->debug.pitch_setpoint  = pitch_final_target;
+    ctrl->debug.pitch_output    = output;
+    ctrl->debug.i_position      = cascade->pid_position.I;
+    ctrl->debug.i_velocity      = cascade->pid_velocity.I;
+    ctrl->debug.i_pitch         = cascade->pid_pitch_angle.I;
+    
     ctrl->control_data = cascade;
 }
 

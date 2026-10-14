@@ -34,6 +34,7 @@
 #include "robot_app.h"
 #include "IO/button.h"
 #include "config.h"
+#include "diag.h" // for uart error counter
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -188,21 +189,22 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == TIM3)
     {
-        loop_flag = 1; // Set main loop flag 
+      if (loop_flag) diag.loop_overrun_count++; // last tick has not yet been handled
+      loop_flag = 1; // Set main loop flag 
     }
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
   if (huart->Instance == USART2) {
-     processRxPacket(huart);
+    processRxPacket(huart);
   } // if USART2
 }
 
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
   if (huart->Instance == USART2) {
-    // uart_error_count++;
-    HAL_UART_AbortReceive(huart);          // clear HAL state and flags
+    diag.uart_error_count++;
+    HAL_UART_AbortReceive(huart); // clear HAL state and flags
     processRxReset();
     HAL_UART_Receive_IT(huart, rxRawBuffer, 1);
   }

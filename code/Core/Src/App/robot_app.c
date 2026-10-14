@@ -4,14 +4,16 @@
 
 #include "robot_app.h"
 #include "config.h"
-#include "controllers.h"
+#include "controllers_config.h"
 // #include "control_state.h"
 #include "control.h"
 #include "imu_handler.h"
 #include "IO/button.h"
 #include "dualFOC_communication.h"
 #include "pc_telemetry.h"
+#include "diag.h"
 
+#include <string.h>
 #include <stdint.h>
 #include <math.h>
 #include <stdio.h>
@@ -22,7 +24,9 @@
 
 extern UART_HandleTypeDef MOT1_UART;
 extern volatile uint8_t loop_flag;
-extern FeedbackPacket_t motor_feedback_data; // Data from ESC
+// extern FeedbackPacket_t fb; // Data from ESC
+static MotorLinkInfo_t motor_link; // connection readings (seq / wiek / round trip)
+static FeedbackPacket_t fb;        // data snapshot from ESC (once in every control loop)
 
 Controller_t controller;
 // ControlState_t control_state;
@@ -55,15 +59,23 @@ void RobotInit() {
     controlSystemInit(&controller);
     TARGET_STATE.target_pitch = target_angle;
     // TARGET_STATE.target_yaw = target_yaw;
+
+    Diag_Init();  // DWT cycle counter (time base in microseconds)
+    memset(&diag, 0, sizeof(diag)); // Initialization-phase counters are not meaningful
 }
 
 TelemetryPacket_t* RobotUpdate() {
     if (loop_flag) {    
       loop_flag = 0;
       // 1. Read IMU data
-      updateControlState(&CONTROL_STATE);
+      MotorFeedbackSnapshot(&fb, &motor_link);
+      updateControlState(&CONTROL_STATE, &fb);
       angle = CONTROL_STATE.pitch;
 
+      if ((robot_state == STATE_INIT || robot_state == STATE_IDLE) &&
+          (fb.status == CMD_ERROR || fb.error != ERR_OK)) {
+        robot_state = STATE_ERROR;
+      }
       switch (robot_state) {
         case STATE_STANDBY:
             if (ButtonIsPressed()) {
@@ -72,13 +84,13 @@ TelemetryPacket_t* RobotUpdate() {
 
               send_motor_command(&MOT1_UART, CMD_START_INIT, 0, 0);
             }
-            if (motor_feedback_data.status == CMD_START_INIT) {
+            if (fb.status == CMD_START_INIT) {
               robot_state = STATE_INIT;
             }
           break;
 
         case STATE_INIT: // check if the communication is ok - wait for the message from motor controller
-          if (motor_feedback_data.status == CMD_HELLO_MOTOR) {
+          if (fb.status == CMD_HELLO_MOTOR) {
             static uint16_t init_timer = 0;
             if (++init_timer >= ONE_SEC/2) { // (send command every 500 ms)
               send_motor_command(&MOT1_UART, CMD_HELLO_MASTER, 0.0, 0.0);
@@ -90,11 +102,14 @@ TelemetryPacket_t* RobotUpdate() {
 
         case STATE_IDLE: //  wait until everything is ready
           static uint16_t idle_timer = 0;
-          if (++idle_timer >= ONE_SEC/2) { // (send command every 500 ms)
+          if (++idle_timer >= ONE_SEC/10) { // (send command every 200 ms)
             send_motor_command(&MOT1_UART, CMD_INIT, 0.0, 0.0);
             idle_timer = 0;
           }
-          if (motor_feedback_data.status == CMD_START) {
+          if (fb.status == CMD_START) {
+            
+            TARGET_STATE.target_position = CONTROL_STATE.position;
+
             robot_state = STATE_BALANCING;
             idle_timer = 0;
           }
@@ -112,10 +127,10 @@ TelemetryPacket_t* RobotUpdate() {
           // 3. Send data to ESCs
           send_motor_command(&MOT1_UART, CMD_SET_VAL, out_l, out_r);
           
-          if (motor_feedback_data.status == CMD_ERROR) {
+          if (fb.status == CMD_ERROR || fb.error != ERR_OK) {
             robot_state = STATE_ERROR;
           }
-          else if (motor_feedback_data.status == CMD_STOP) {
+          else if (fb.status == CMD_STOP) {
             robot_state = STATE_STANDBY;
           }
           break;
@@ -135,7 +150,7 @@ TelemetryPacket_t* RobotUpdate() {
               out_l = 0.0f; out_r = 0.0f;
             }
 
-            if (motor_feedback_data.status == CMD_CLR_FLT) {
+            if (fb.status == CMD_CLR_FLT) {
               robot_state = STATE_STANDBY;
             }
           break;
@@ -150,18 +165,15 @@ TelemetryPacket_t* RobotUpdate() {
       ButtonClear(); // clear button memory
 
       // TODO: add config info at startup (eg. return startup-specific val)
-      telemetry_packet = create_telemetry_packet(
-        robot_state,  // robot_status 
-        motor_feedback_data.status, // motor_status
-        CONTROL_STATE.pitch,  // angle_pitch
-        CONTROL_STATE.yaw,    // angle_yaw
-        motor_feedback_data.motor1_vel,
-        motor_feedback_data.motor1_pos,
-        motor_feedback_data.motor1_A, // mot1_A
-        motor_feedback_data.motor2_vel,
-        motor_feedback_data.motor2_pos,
-        motor_feedback_data.motor2_A // mot2_A
+      create_telemetry_packet(
+        &telemetry_packet, 
+        &controller, 
+        &fb, 
+        &motor_link, 
+        robot_state, 
+        out_l, out_r
       );
+      return &telemetry_packet;
     } // if (loop_flag)
-    return &telemetry_packet;
+    return NULL; // brak nowego cyklu -> nie ma czego wysyłać
 }
