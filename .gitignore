@@ -1,6 +1,38 @@
-build
+# --- build ---
+build/
+cmake-build-*/
+*.elf
+*.map
+
+# --- cache ---
+.cache/
+.vscode/
+.idea/
+.settings/
+compile_commands.json
+
+# --- CubeMX / tools ---
 mx.scratch
-!.settings
-Tests
-.vscode
 project_tree*
+
+
+# --- SiL (sil/) ---
+sil/*.so
+sil/*.dll
+sil/*.dylib
+sil/test_core
+
+# --- Python ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# --- logs ---
+logs/
+*.log
+
+# --- system ---
+.DS_Store
+Thumbs.db
+*.swp
