@@ -50,6 +50,8 @@
 #define CTRL_TYPE_CASCADE_PID  1
 #define CONTROLLER             CTRL_TYPE_CASCADE_PID
 
+#define CONTROL_DT (LOOP_TIME * 0.001f) // diff time in s (time change triggered with timer interrupt)
+
 #define TARGET_ANGLE  0.0f
 
 #define MAX_ANGLE   40.0f

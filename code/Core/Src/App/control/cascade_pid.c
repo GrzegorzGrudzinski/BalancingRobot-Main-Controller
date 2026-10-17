@@ -4,14 +4,13 @@
 
 #include "cascade_pid.h"
 #include "pid.h"
-// #include "pid_wrapper.h"
 
 void CASCADE_PID_InitFunct  (Controller_t *ctrl, void* config_data) {
 
 }
 
 
-void CASCADE_PID_RunFunct (Controller_t *ctrl, float* out_l, float* out_r) {
+void CASCADE_PID_RunFunct (Controller_t *ctrl, float dt, float* out_l, float* out_r) {
     CASCADE_t* cascade = (CASCADE_t*)ctrl->config_data;
 
     if (cascade == NULL) {
@@ -25,7 +24,8 @@ void CASCADE_PID_RunFunct (Controller_t *ctrl, float* out_l, float* out_r) {
         &cascade->pid_position, 
         ctrl->observed_state.position, 
         ctrl->observed_state.velocity, 
-        ctrl->target_state.target_position
+        ctrl->target_state.target_position,
+        dt
     );
     float velocity_final_target = target_velocity; // todo rc control (+ set_velocity)
     
@@ -34,7 +34,8 @@ void CASCADE_PID_RunFunct (Controller_t *ctrl, float* out_l, float* out_r) {
         &cascade->pid_velocity , 
         ctrl->observed_state.velocity, 
         0.0f, 
-        velocity_final_target
+        velocity_final_target,
+        dt
     );
     float target_pitch = -velocity_output;
     float pitch_final_target = ctrl->target_state.target_pitch + target_pitch;
@@ -44,7 +45,8 @@ void CASCADE_PID_RunFunct (Controller_t *ctrl, float* out_l, float* out_r) {
         &cascade->pid_pitch_angle, 
         ctrl->observed_state.pitch, 
         ctrl->observed_state.pitch_rate, 
-        pitch_final_target
+        pitch_final_target,
+        dt
     );
 
     // Yaw loop

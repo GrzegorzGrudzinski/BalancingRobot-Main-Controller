@@ -26,5 +26,5 @@ void updateControlState(ControlState_t *state, const FeedbackPacket_t *fb) {
     state->velocity = (left_vel + right_vel)* WHEEL_RADIUS*0.5f ;
     state->position = (state->left_wheel_pos + state->right_wheel_pos)*WHEEL_RADIUS*0.5f;
 
-    state->yaw = (state->right_wheel_pos - state->left_wheel_pos) / (ROBOT_WIDTH);
+    state->yaw = (state->right_wheel_pos - state->left_wheel_pos) * WHEEL_RADIUS / (ROBOT_WIDTH);
 }

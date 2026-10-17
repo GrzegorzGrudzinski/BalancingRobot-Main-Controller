@@ -5,7 +5,7 @@
 #include "robot_app.h"
 #include "config.h"
 #include "controllers_config.h"
-// #include "control_state.h"
+#include "control_state.h"
 #include "control.h"
 #include "imu_handler.h"
 #include "IO/button.h"
@@ -122,7 +122,7 @@ TelemetryPacket_t* RobotUpdate() {
           }
 
           // 2. Calculate 
-          controlRun(&controller, &out_l, &out_r);
+          controlRun(&controller, CONTROL_DT, &out_l, &out_r);
 
           // 3. Send data to ESCs
           send_motor_command(&MOT1_UART, CMD_SET_VAL, out_l, out_r);

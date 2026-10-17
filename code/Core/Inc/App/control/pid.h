@@ -1,9 +1,6 @@
 #ifndef PID_H_
 #define PID_H_
 
-#include <stdint.h>
-
-
 typedef struct 
 {
     float Kp;
@@ -12,8 +9,6 @@ typedef struct
 
     float max_output;
     float max_i;
-
-    uint32_t timeSample; // 
 } PID_Config_t;
 
 /*
@@ -29,12 +24,9 @@ typedef struct
     float max_output;
     float max_i;
     
-    uint32_t timeSample;
-    uint32_t prevTime;
-    
     float error;
-    float error_sum;
-    float lastPos;
+    float error_sum; // for i term calculation
+    float lastPos;   // for d term calculation
     float output;
     
     float P;
@@ -43,8 +35,12 @@ typedef struct
 } PID_t;
 
 void pidInit (PID_t *pid, const PID_Config_t* config);
-float run_pid_rate(PID_t *pid, float currVal, float rateVal, float setPoint);
-float run_pid_dt(PID_t *pid, float currVal, float setPoint);
+
+/* dt <= 0 returns last output, not changing the state */
+float run_pid_rate(PID_t *pid, float currVal, float rateVal, float setPoint, float dt);
+float run_pid_dt(PID_t *pid, float currVal, float setPoint, float dt);
+
+
 void pid_reset(PID_t *pid, float current_pos);
 
 #endif /* PID_H_ */

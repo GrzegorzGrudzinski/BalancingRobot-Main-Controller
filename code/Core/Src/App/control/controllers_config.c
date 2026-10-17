@@ -26,7 +26,7 @@ void controlSystemInit (Controller_t* ctrl) {
       .Kd = PID_KD,
       .max_output = PID_MAX_OUT,
       .max_i = PID_MAX_I,
-      .timeSample = LOOP_TIME
+    //   .timeSample = LOOP_TIME
     };
     ctrl->ctrl_type = CTRL_TYPE_PID;
 
@@ -44,7 +44,7 @@ void controlSystemInit (Controller_t* ctrl) {
       .Kd = CASCADE_POS_KD,
       .max_output = CASCADE_POS_MAX_OUT,
       .max_i = 0.3f * CASCADE_POS_MAX_OUT,
-      .timeSample = LOOP_TIME
+    //   .timeSample = LOOP_TIME
     };
     
     PID_Config_t velocity_pid_cfg = {
@@ -53,7 +53,7 @@ void controlSystemInit (Controller_t* ctrl) {
         .Kd = CASCADE_VEL_KD,
         .max_output = CASCADE_VEL_MAX_OUT,
         .max_i = 0.3f * CASCADE_VEL_MAX_OUT,
-        .timeSample = LOOP_TIME
+        // .timeSample = LOOP_TIME
     };
 
     PID_Config_t pitch_pid_cfg = {
@@ -62,7 +62,7 @@ void controlSystemInit (Controller_t* ctrl) {
       .Kd = CASCADE_PITCH_KD,
       .max_output = CASCADE_PITCH_MAX_OUT,
       .max_i = 0.3f * CASCADE_PITCH_MAX_OUT,
-      .timeSample = LOOP_TIME
+    //   .timeSample = LOOP_TIME
     };    
 
     // PID_Config_t yaw_pid_cfg = {

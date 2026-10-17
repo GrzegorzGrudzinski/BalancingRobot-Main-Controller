@@ -47,6 +47,7 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/robot_app.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/control_state.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/communication/dualFOC_communication.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/communication/pc_telemetry.c"
     
@@ -58,7 +59,6 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/control/pid_wrapper.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/control/control.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/control/controllers_config.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/control/control_state.c"
 
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/IO/mpu6050.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/IO/imu_handler.c"

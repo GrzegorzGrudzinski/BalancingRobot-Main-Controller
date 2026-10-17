@@ -22,9 +22,9 @@ void  controlInit (Controller_t *ctrl, void* config_data) {
 }
 
 
-void controlRun(Controller_t *ctrl, float* out_l, float* out_r) {
+void controlRun(Controller_t *ctrl, float dt ,float* out_l, float* out_r) {
     if (ctrl->run != NULL) {
-        ctrl->run(ctrl, out_l, out_r);
+        ctrl->run(ctrl, dt, out_l, out_r);
     } else {
         *out_l = 0.0f;
         *out_r = 0.0f;

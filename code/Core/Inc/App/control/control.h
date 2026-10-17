@@ -5,14 +5,14 @@
 #ifndef CONTROL_H_
 #define CONTROL_H_
 
-#include "control_state.h"
+#include "control_types.h"
 
 #include <stdint.h>
 
 typedef struct Controller_t Controller_t;
 
 typedef void (*CtrlInitFunct_t) (Controller_t *ctrl, void* config_data);
-typedef void (*CtrlRunFunct_t)  (Controller_t *ctrl, float* out_l, float* out_r);
+typedef void (*CtrlRunFunct_t)  (Controller_t *ctrl, float dt, float* out_l, float* out_r);
 typedef void (*CtrlResetFunct_t)(Controller_t *ctrl);
 
 struct Controller_t
@@ -23,8 +23,6 @@ struct Controller_t
     CtrlRunFunct_t run;
     CtrlResetFunct_t reset;
 
-    uint32_t timeSample;
-
     void* control_data; // data from controller (eg. PID values)
     ControlState_t observed_state; // current observed values
     TargetState_t target_state; // target values
@@ -33,7 +31,7 @@ struct Controller_t
 };
 
 void controlInit (Controller_t *ctrl, void* config_data);
-void controlRun  (Controller_t *ctrl, float* out_l, float* out_r);
+void controlRun  (Controller_t *ctrl, float dt, float* out_l, float* out_r);
 void controlReset(Controller_t *ctrl);
 
 #endif /* CONTROL_H_ */
