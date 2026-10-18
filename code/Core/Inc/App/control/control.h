@@ -26,6 +26,7 @@ struct Controller_t
     void* control_data; // data from controller (eg. PID values)
     ControlState_t observed_state; // current observed values
     TargetState_t target_state; // target values
+    // const Limits_t // todo
 
     ControlDebug_t debug; // values of the last run
 };

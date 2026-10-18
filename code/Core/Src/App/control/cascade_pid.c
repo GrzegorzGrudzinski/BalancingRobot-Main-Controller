@@ -27,10 +27,11 @@ void CASCADE_PID_RunFunct (Controller_t *ctrl, float dt, float* out_l, float* ou
         ctrl->target_state.target_position,
         dt
     );
-    float velocity_final_target = target_velocity; // todo rc control (+ set_velocity)
+
+    float velocity_final_target = target_velocity; // todo rc control // ctrl->target_state.target_velocity
     
     // Velocity loop 
-    float velocity_output = run_pid_rate( // minus 
+    float velocity_output = run_pid_rate(
         &cascade->pid_velocity , 
         ctrl->observed_state.velocity, 
         0.0f, 
@@ -51,7 +52,7 @@ void CASCADE_PID_RunFunct (Controller_t *ctrl, float dt, float* out_l, float* ou
 
     // Yaw loop
     // float yaw_offet = run_pid_rate(&cascade->pid_yaw_angle, ctrl->observed_state.yaw, ctrl->observed_state.yaw_rate, ctrl->target_yaw);
-
+    
     // Output
     *out_l = output;  // - yaw_offset
     *out_r = output;  // + yaw_offset

@@ -67,9 +67,11 @@ void RobotInit() {
 TelemetryPacket_t* RobotUpdate() {
     if (loop_flag) {    
       loop_flag = 0;
-      // 1. Read IMU data
+      // 1. Read and update data
       MotorFeedbackSnapshot(&fb, &motor_link);
       updateControlState(&CONTROL_STATE, &fb);
+    // TODO: updateTargetState(&TARGET_STATE, &pc_fb)
+
       angle = CONTROL_STATE.pitch;
 
       if ((robot_state == STATE_INIT || robot_state == STATE_IDLE) &&
