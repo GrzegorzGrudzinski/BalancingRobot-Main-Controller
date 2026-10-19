@@ -110,8 +110,6 @@ TelemetryPacket_t* RobotUpdate() {
           }
           if (fb.status == CMD_START) {
             
-            TARGET_STATE.target_position = CONTROL_STATE.position;
-
             robot_state = STATE_BALANCING;
             idle_timer = 0;
           }

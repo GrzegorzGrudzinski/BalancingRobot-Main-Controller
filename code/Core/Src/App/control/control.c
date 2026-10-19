@@ -36,7 +36,9 @@ void controlReset(Controller_t *ctrl) {
     if (ctrl->reset != NULL) {
         ctrl->reset(ctrl);
     }
+
+    // reset robots target position so it is not going to random point after reset
+    ctrl->target_state.target_position = ctrl->observed_state.position;
     
     memset(&ctrl->debug, 0, sizeof(ctrl->debug));
-    // TODO: add ctrl->reset_target 
 }
