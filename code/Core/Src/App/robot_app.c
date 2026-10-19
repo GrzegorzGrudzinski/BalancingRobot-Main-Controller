@@ -133,6 +133,12 @@ TelemetryPacket_t* RobotUpdate() {
           else if (fb.status == CMD_STOP) {
             robot_state = STATE_STANDBY;
           }
+
+          if (motor_link.fb_age_us > MOTOR_FB_TIMEOUT) { 
+            send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
+            robot_state = STATE_ERROR;
+          }
+          
           break;
 
         case STATE_FALLEN:

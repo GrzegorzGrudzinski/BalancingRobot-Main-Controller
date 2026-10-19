@@ -43,6 +43,7 @@
 // PC telemetry (from control loop)(200 Hz). 1 = every cycle, 2 = 100 Hz, 4 = 50 Hz...
 #define TELEMETRY_DECIMATION 1
 
+#define MOTOR_FB_TIMEOUT  10*LOOP_TIME*1000 // 50000 -> ~10 cycles
 //======================
 //  Control settings
 //======================
@@ -71,22 +72,22 @@
 //===============================
 
 // Position
-#define CASCADE_POS_KP 0.30f // 0.3f
+#define CASCADE_POS_KP 0.40f // 0.3f
 #define CASCADE_POS_KI 0.0f
 #define CASCADE_POS_KD 0.0f
-#define CASCADE_POS_MAX_OUT 0.7f  // velocity 
+#define CASCADE_POS_MAX_OUT 1.0f  // velocity 
 
 // Velocity
 #define CASCADE_VEL_KP 1.0f // 0.06f // 0.50f // 0.5f
 #define CASCADE_VEL_KI 0.50f // 2.0f // 2.0f
 #define CASCADE_VEL_KD 0.0f
-#define CASCADE_VEL_MAX_OUT 5.0f // angle 
+#define CASCADE_VEL_MAX_OUT 8.0f // angle 
 
 // Pitch Angle
 #define CASCADE_PITCH_KP 0.80f // 2.0f
 #define CASCADE_PITCH_KI 0.0f
 #define CASCADE_PITCH_KD 0.04f //0.4f
-#define CASCADE_PITCH_MAX_OUT 2.0f  // motors max input
+#define CASCADE_PITCH_MAX_OUT 2.5f  // motors max input
 
 // Yaw Angle
 #define CASCADE_YAW_KP 0.0f // 0.1f
