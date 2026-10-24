@@ -9,7 +9,7 @@
 #include <stddef.h> // for NULL
 
 void  PID_InitFunct  (Controller_t *ctrl, void* config_data) {
-    /*  */
+    (void)ctrl; (void)config_data;
 }
 
 

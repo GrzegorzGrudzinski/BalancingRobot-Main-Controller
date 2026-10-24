@@ -6,7 +6,7 @@
 #include "pid.h"
 
 void CASCADE_PID_InitFunct  (Controller_t *ctrl, void* config_data) {
-
+    (void)ctrl; (void)config_data;
 }
 
 
