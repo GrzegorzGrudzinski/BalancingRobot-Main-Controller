@@ -15,7 +15,6 @@ static MPU6050_t MPU6050;
 static float offset = 0.0f;
 
 void IMU_Init() {
-  // HAL_Delay(1000); // TEMP (for debugging)
   printf("BALANCING ROBOT - starting initialization \r\n");
   uint32_t mpu_init_time = HAL_GetTick(); // Init timeout timer
   
@@ -34,7 +33,7 @@ void IMU_Init() {
   while (warmup_ticks < CALIB_WARMUP_TIME) {
     if (loop_flag) {
       loop_flag = 0;
-      MPU6050_Read_All(&IMU_I2C, &MPU6050); 
+      MPU6050_Read_All(&IMU_I2C, &MPU6050, CONTROL_DT); 
       warmup_ticks++;
     }
   }
@@ -48,14 +47,14 @@ void IMU_Init() {
   while (calib_ticks < CALIB_TIME) {
     if (loop_flag) {
       loop_flag = 0;
-      MPU6050_Read_All(&IMU_I2C, &MPU6050);
+      MPU6050_Read_All(&IMU_I2C, &MPU6050, CONTROL_DT);
       offset_sum += MPU6050.KalmanAngleX;
       calib_ticks++;
     }
     // HAL_Delay(1);
   }
   // offset = offset_sum / (float)calib_ticks;
-  offset = 0;
+  offset = IMU_ANGLE_OFFSET;
   printf("Offset calibration complete. Offset = %.2f deg\r\n", offset);
   
   loop_flag = 0;
@@ -63,7 +62,7 @@ void IMU_Init() {
 }
 
 uint8_t IMU_Update(void) {
-  if (MPU6050_Read_All(&IMU_I2C, &MPU6050) != 0) {
+  if (MPU6050_Read_All(&IMU_I2C, &MPU6050, CONTROL_DT) != 0) {
     diag.imu_error_count++;
     return 1;
   }

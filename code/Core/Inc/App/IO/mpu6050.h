@@ -8,8 +8,6 @@
 #ifndef INC_GY521_H_
 #define INC_GY521_H_
 
-#endif /* INC_GY521_H_ */
-
 #include <stdint.h>
 #include "i2c.h"
 
@@ -20,32 +18,32 @@ typedef struct
     int16_t Accel_X_RAW;
     int16_t Accel_Y_RAW;
     int16_t Accel_Z_RAW;
-    double Ax;
-    double Ay;
-    double Az;
+    float Ax;
+    float Ay;
+    float Az;
 
     int16_t Gyro_X_RAW;
     int16_t Gyro_Y_RAW;
     int16_t Gyro_Z_RAW;
-    double Gx;
-    double Gy;
-    double Gz;
+    float Gx;
+    float Gy;
+    float Gz;
 
     float Temperature;
 
-    double KalmanAngleX;
-    double KalmanAngleY;
+    float KalmanAngleX;
+    float KalmanAngleY;
 } MPU6050_t;
 
 // Kalman structure
 typedef struct
 {
-    double Q_angle;
-    double Q_bias;
-    double R_measure;
-    double angle;
-    double bias;
-    double P[2][2];
+    float Q_angle;
+    float Q_bias;
+    float R_measure;
+    float angle;
+    float bias;
+    float P[2][2];
 } Kalman_t;
 
 uint8_t MPU6050_Init(I2C_HandleTypeDef *I2Cx);
@@ -56,6 +54,8 @@ void MPU6050_Read_Gyro(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct);
 
 void MPU6050_Read_Temp(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct);
 
-uint8_t MPU6050_Read_All(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct); // 0 = ok, 1 = I2C error
+uint8_t MPU6050_Read_All(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct, float dt); // 0 = ok, 1 = I2C error
 
-double Kalman_getAngle(Kalman_t *Kalman, double newAngle, double newRate, double dt);
+float Kalman_getAngle(Kalman_t *Kalman, float newAngle, float newRate, float dt);
+
+#endif /* INC_GY521_H_ */

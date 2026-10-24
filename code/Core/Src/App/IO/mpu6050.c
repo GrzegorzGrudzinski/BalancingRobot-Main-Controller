@@ -34,8 +34,8 @@
 #include <math.h>
 #include "mpu6050.h"
 
-#define RAD_TO_DEG 57.295779513082320876798154814105
-
+// #define RAD_TO_DEG 57.295779513082320876798154814105
+#define RAD_TO_DEG 57.2957795f
 #define WHO_AM_I_REG 0x75
 #define PWR_MGMT_1_REG 0x6B
 #define SMPLRT_DIV_REG 0x19
@@ -47,17 +47,17 @@
 
 // Setup MPU6050
 #define MPU6050_ADDR 0xD0
-const uint16_t i2c_timeout = 100;
-const double Accel_Z_corrector = 14418.0;
+static const uint16_t i2c_timeout = 2; // was: 100
+static const float Accel_Z_corrector = 14418.0f;
 
-uint32_t timer;
+// uint32_t timer;
 
-Kalman_t KalmanX = {
+static Kalman_t KalmanX = {
     .Q_angle = 0.001f,
     .Q_bias = 0.003f,
     .R_measure = 0.03f};
 
-Kalman_t KalmanY = {
+static Kalman_t KalmanY = {
     .Q_angle = 0.001f,
     .Q_bias = 0.003f,
     .R_measure = 0.03f,
@@ -113,8 +113,8 @@ void MPU6050_Read_Accel(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct)
          I have configured FS_SEL = 0. So I am dividing by 16384.0
          for more details check ACCEL_CONFIG Register              ****/
 
-    DataStruct->Ax = DataStruct->Accel_X_RAW / 16384.0;
-    DataStruct->Ay = DataStruct->Accel_Y_RAW / 16384.0;
+    DataStruct->Ax = DataStruct->Accel_X_RAW / 16384.0f;
+    DataStruct->Ay = DataStruct->Accel_Y_RAW / 16384.0f;
     DataStruct->Az = DataStruct->Accel_Z_RAW / Accel_Z_corrector;
 }
 
@@ -135,9 +135,9 @@ void MPU6050_Read_Gyro(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct)
          I have configured FS_SEL = 0. So I am dividing by 131.0
          for more details check GYRO_CONFIG Register              ****/
 
-    DataStruct->Gx = DataStruct->Gyro_X_RAW / 131.0;
-    DataStruct->Gy = DataStruct->Gyro_Y_RAW / 131.0;
-    DataStruct->Gz = DataStruct->Gyro_Z_RAW / 131.0;
+    DataStruct->Gx = DataStruct->Gyro_X_RAW / 131.0f;
+    DataStruct->Gy = DataStruct->Gyro_Y_RAW / 131.0f;
+    DataStruct->Gz = DataStruct->Gyro_Z_RAW / 131.0f;
 }
 
 void MPU6050_Read_Temp(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct)
@@ -153,7 +153,7 @@ void MPU6050_Read_Temp(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct)
     DataStruct->Temperature = (float)((int16_t)temp / (float)340.0 + (float)36.53);
 }
 
-uint8_t MPU6050_Read_All(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct)
+uint8_t MPU6050_Read_All(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct, float dt)
 {
     uint8_t Rec_Data[14];
     int16_t temp;
@@ -173,29 +173,29 @@ uint8_t MPU6050_Read_All(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct)
     DataStruct->Gyro_Y_RAW = (int16_t)(Rec_Data[10] << 8 | Rec_Data[11]);
     DataStruct->Gyro_Z_RAW = (int16_t)(Rec_Data[12] << 8 | Rec_Data[13]);
 
-    DataStruct->Ax = DataStruct->Accel_X_RAW / 16384.0;
-    DataStruct->Ay = DataStruct->Accel_Y_RAW / 16384.0;
+    DataStruct->Ax = DataStruct->Accel_X_RAW / 16384.0f;
+    DataStruct->Ay = DataStruct->Accel_Y_RAW / 16384.0f;
     DataStruct->Az = DataStruct->Accel_Z_RAW / Accel_Z_corrector;
-    DataStruct->Temperature = (float)((int16_t)temp / (float)340.0 + (float)36.53);
-    DataStruct->Gx = DataStruct->Gyro_X_RAW / 131.0;
-    DataStruct->Gy = DataStruct->Gyro_Y_RAW / 131.0;
-    DataStruct->Gz = DataStruct->Gyro_Z_RAW / 131.0;
+    DataStruct->Temperature = (float)((int16_t)temp / (float)340.0f + (float)36.53f);
+    DataStruct->Gx = DataStruct->Gyro_X_RAW / 131.0f;
+    DataStruct->Gy = DataStruct->Gyro_Y_RAW / 131.0f;
+    DataStruct->Gz = DataStruct->Gyro_Z_RAW / 131.0f;
 
     // Kalman angle solve
-    double dt = (double)(HAL_GetTick() - timer) / 1000;
-    timer = HAL_GetTick();
-    double roll;
-    double roll_sqrt = sqrt(
-        DataStruct->Accel_X_RAW * DataStruct->Accel_X_RAW + DataStruct->Accel_Z_RAW * DataStruct->Accel_Z_RAW);
+    // float dt = (float)(HAL_GetTick() - timer) / 1000;
+    // timer = HAL_GetTick();
+    float roll;
+    float roll_sqrt = sqrtf(
+        (float)DataStruct->Accel_X_RAW * DataStruct->Accel_X_RAW + (float)DataStruct->Accel_Z_RAW * DataStruct->Accel_Z_RAW);
     if (roll_sqrt != 0.0)
     {
-        roll = atan(DataStruct->Accel_Y_RAW / roll_sqrt) * RAD_TO_DEG;
+        roll = atanf((float)DataStruct->Accel_Y_RAW / roll_sqrt) * RAD_TO_DEG;
     }
     else
     {
         roll = 0.0;
     }
-    double pitch = atan2(-DataStruct->Accel_X_RAW, DataStruct->Accel_Z_RAW) * RAD_TO_DEG;
+    float pitch = atan2f(-DataStruct->Accel_X_RAW, DataStruct->Accel_Z_RAW) * RAD_TO_DEG;
     if ((pitch < -90 && DataStruct->KalmanAngleY > 90) || (pitch > 90 && DataStruct->KalmanAngleY < -90))
     {
         KalmanY.angle = pitch;
@@ -205,15 +205,15 @@ uint8_t MPU6050_Read_All(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct)
     {
         DataStruct->KalmanAngleY = Kalman_getAngle(&KalmanY, pitch, DataStruct->Gy, dt);
     }
-    if (fabs(DataStruct->KalmanAngleY) > 90)
+    if (fabsf(DataStruct->KalmanAngleY) > 90)
         DataStruct->Gx = -DataStruct->Gx;
     DataStruct->KalmanAngleX = Kalman_getAngle(&KalmanX, roll, DataStruct->Gx, dt);
     return 0;    
 }
 
-double Kalman_getAngle(Kalman_t *Kalman, double newAngle, double newRate, double dt)
+float Kalman_getAngle(Kalman_t *Kalman, float newAngle, float newRate, float dt)
 {
-    double rate = newRate - Kalman->bias;
+    float rate = newRate - Kalman->bias;
     Kalman->angle += dt * rate;
 
     Kalman->P[0][0] += dt * (dt * Kalman->P[1][1] - Kalman->P[0][1] - Kalman->P[1][0] + Kalman->Q_angle);
@@ -221,17 +221,17 @@ double Kalman_getAngle(Kalman_t *Kalman, double newAngle, double newRate, double
     Kalman->P[1][0] -= dt * Kalman->P[1][1];
     Kalman->P[1][1] += Kalman->Q_bias * dt;
 
-    double S = Kalman->P[0][0] + Kalman->R_measure;
-    double K[2];
+    float S = Kalman->P[0][0] + Kalman->R_measure;
+    float K[2];
     K[0] = Kalman->P[0][0] / S;
     K[1] = Kalman->P[1][0] / S;
 
-    double y = newAngle - Kalman->angle;
+    float y = newAngle - Kalman->angle;
     Kalman->angle += K[0] * y;
     Kalman->bias += K[1] * y;
 
-    double P00_temp = Kalman->P[0][0];
-    double P01_temp = Kalman->P[0][1];
+    float P00_temp = Kalman->P[0][0];
+    float P01_temp = Kalman->P[0][1];
 
     Kalman->P[0][0] -= K[0] * P00_temp;
     Kalman->P[0][1] -= K[0] * P01_temp;
