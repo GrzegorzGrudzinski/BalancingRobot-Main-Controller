@@ -8,6 +8,6 @@
 #include "control_types.h"
 #include "dualFOC_communication.h" // for feedback packet
 
-void updateControlState(ControlState_t *state, const FeedbackPacket_t *fb);
+uint8_t updateControlState(ControlState_t *state, const FeedbackPacket_t *fb); // 0 = ok, 1 = imu err
 
 #endif /* CONTROL_STATE_H_ */

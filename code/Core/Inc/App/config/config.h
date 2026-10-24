@@ -28,6 +28,7 @@
 // pull up config: pressed = reset; idle = set;
 #define BUTTON_PRESSED  GPIO_PIN_RESET
 #define BUTTON_IDLE     GPIO_PIN_SET
+
 //======================
 //  Timers
 //======================
@@ -43,7 +44,21 @@
 // PC telemetry (from control loop)(200 Hz). 1 = every cycle, 2 = 100 Hz, 4 = 50 Hz...
 #define TELEMETRY_DECIMATION 1
 
-#define MOTOR_FB_TIMEOUT  10*LOOP_TIME*1000 // 50000 -> ~10 cycles
+#define MOTOR_FB_TIMEOUT  (10*LOOP_TIME*1000) // 50000 -> ~10 cycles
+#define STOP_ACK_TIMEOUT  ( ONE_SEC/10 ) // 100 ms for acknowledging STOP cmd
+
+//======================
+//  Calibration
+//======================
+#define CALIB_WARMUP_TIME ( ONE_SEC*3 )
+#define CALIB_TIME         ONE_SEC
+
+#define IMU_ANGLE_OFFSET -2.0f
+
+#define START_ANGLE   3.0f          // [deg] max pitch during start
+#define UPRIGHT_TIME  ( ONE_SEC/5 ) // 200 ms vertical before start
+
+
 //======================
 //  Control settings
 //======================
@@ -78,15 +93,15 @@
 #define CASCADE_POS_MAX_OUT 1.0f  // velocity 
 
 // Velocity
-#define CASCADE_VEL_KP 1.0f // 0.06f // 0.50f // 0.5f
+#define CASCADE_VEL_KP 6.0f // 0.06f // 0.50f // 0.5f
 #define CASCADE_VEL_KI 0.50f // 2.0f // 2.0f
-#define CASCADE_VEL_KD 0.0f
+#define CASCADE_VEL_KD 0.0f // NOT USED
 #define CASCADE_VEL_MAX_OUT 8.0f // angle 
 
 // Pitch Angle
-#define CASCADE_PITCH_KP 0.80f // 2.0f
+#define CASCADE_PITCH_KP 0.80f 
 #define CASCADE_PITCH_KI 0.0f
-#define CASCADE_PITCH_KD 0.04f //0.4f
+#define CASCADE_PITCH_KD 0.04f 
 #define CASCADE_PITCH_MAX_OUT 2.5f  // motors max input
 
 // Yaw Angle
@@ -97,9 +112,11 @@
 
 
 //======================
-//  Calibration
+//  OTHER
 //======================
-#define CALIB_WARMUP_TIME ( ONE_SEC*3 )
-#define CALIB_TIME         ONE_SEC
+#define IMU_ERR_LIMIT 3 // 3 following I2C errors (15 ms) -> STOP
+
+
+
 
 #endif /* CONFIG_H_ */

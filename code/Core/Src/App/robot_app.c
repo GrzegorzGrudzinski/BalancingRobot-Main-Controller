@@ -20,16 +20,17 @@
 
 ////
 
-
-
 extern UART_HandleTypeDef MOT1_UART;
 extern volatile uint8_t loop_flag;
-// extern FeedbackPacket_t fb; // Data from ESC
+
 static MotorLinkInfo_t motor_link; // connection readings (seq / wiek / round trip)
-static FeedbackPacket_t fb;        // data snapshot from ESC (once in every control loop)
+
+
+static FeedbackPacket_t fb;       // data snapshot from ESC (once in every control loop)
+static uint16_t hello_tx_seq = 0; // tx_seq ESP when sending HELLO_MASTER
+static TelemetryPacket_t telemetry_packet;
 
 Controller_t controller;
-// ControlState_t control_state;
 #define  CONTROL_STATE controller.observed_state
 #define  TARGET_STATE controller.target_state
 
@@ -38,21 +39,6 @@ static float target_angle = TARGET_ANGLE;
 static float angle = 0.0f;
 static float out_l = 0.0f;
 static float out_r = 0.0f;
-
-static TelemetryPacket_t telemetry_packet;
-
-////
-
-// static const char* GetStateName(RobotState_t s) {
-//   switch(s) {
-//     case STATE_INIT: return "INIT";
-//     case STATE_IDLE: return "IDLE";
-//     case STATE_BALANCING: return "BALANCING";
-//     case STATE_FALLEN: return "FALLEN";
-//     case STATE_ERROR: return "ERROR";
-//     default: return "UNKNOWN";
-//   }
-// }
 
 void RobotInit() {
     IMU_Init();
@@ -69,17 +55,23 @@ TelemetryPacket_t* RobotUpdate() {
       loop_flag = 0;
       // 1. Read and update data
       MotorFeedbackSnapshot(&fb, &motor_link);
-      updateControlState(&CONTROL_STATE, &fb);
+      
+      static uint8_t imu_err_streak = 0;
+      if (updateControlState(&CONTROL_STATE, &fb) != 0) {
+        if (imu_err_streak < UINT8_MAX) imu_err_streak++;
+      } else {
+        imu_err_streak = 0;
+      }
     // TODO: updateTargetState(&TARGET_STATE, &pc_fb)
 
       angle = CONTROL_STATE.pitch;
 
-      if ((robot_state == STATE_INIT || robot_state == STATE_IDLE) &&
+      if ((robot_state == STATE_CONNECT || robot_state == STATE_INIT) &&
           (fb.status == CMD_ERROR || fb.error != ERR_OK)) {
         robot_state = STATE_ERROR;
       }
       switch (robot_state) {
-        case STATE_STANDBY:
+        case STATE_STANDBY:{
             if (ButtonIsPressed()) {
               controlReset(&controller);
               out_l = 0.0f; out_r = 0.0f;
@@ -87,37 +79,71 @@ TelemetryPacket_t* RobotUpdate() {
               send_motor_command(&MOT1_UART, CMD_START_INIT, 0, 0);
             }
             if (fb.status == CMD_START_INIT) {
-              robot_state = STATE_INIT;
+              robot_state = STATE_CONNECT;
             }
           break;
+        }
 
-        case STATE_INIT: // check if the communication is ok - wait for the message from motor controller
+        case STATE_CONNECT:{ // check if the communication is ok - wait for the message from motor controller
+          static uint16_t init_timer = 0;
           if (fb.status == CMD_HELLO_MOTOR) {
-            static uint16_t init_timer = 0;
-            if (++init_timer >= ONE_SEC/2) { // (send command every 500 ms)
+            if (++init_timer >= ONE_SEC/10) { // (100 ms)
               send_motor_command(&MOT1_UART, CMD_HELLO_MASTER, 0.0, 0.0);
+
+              hello_tx_seq = fb.tx_seq; // newer frames = motor driver still in CONNECT
+
               init_timer = 0;
-              robot_state = STATE_IDLE;
+              robot_state = STATE_INIT;
             }
           }
           break;
+        }
 
-        case STATE_IDLE: //  wait until everything is ready
+        case STATE_INIT:{ //  wait until everything is ready
           static uint16_t idle_timer = 0;
-          if (++idle_timer >= ONE_SEC/10) { // (send command every 200 ms)
-            send_motor_command(&MOT1_UART, CMD_INIT, 0.0, 0.0);
+          static uint16_t upright_timer = 0;
+          
+          if (fb.status == CMD_HELLO_MOTOR && fb.tx_seq != hello_tx_seq) {
+            idle_timer = 0;
+            upright_timer = 0;
+            robot_state = STATE_CONNECT;
+            break;
+          }
+
+          // Robot has to be vertical to continue
+          if (fabsf(angle) < START_ANGLE && imu_err_streak == 0) {
+            if (upright_timer < UPRIGHT_TIME) upright_timer++;
+          } else {
+            upright_timer = 0;
+          }
+
+          if (upright_timer >= UPRIGHT_TIME && ++idle_timer >= ONE_SEC/50) { // every 20 ms
+            send_motor_command(&MOT1_UART, CMD_INIT, 0.0f, 0.0f);
             idle_timer = 0;
           }
           if (fb.status == CMD_START) {
-            
-            robot_state = STATE_BALANCING;
+            controlReset(&controller); // update the controller
             idle_timer = 0;
+            upright_timer = 0;
+            robot_state = STATE_BALANCING;
           }
           break;
+        }
 
-        case STATE_BALANCING: // normal operation
+        case STATE_BALANCING:{ // normal operation
           if (fabsf(angle) > MAX_ANGLE){// Out of range
+            send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
             robot_state = STATE_FALLEN;
+            break;
+          }
+          if (imu_err_streak >= IMU_ERR_LIMIT) { // imu error
+            send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
+            robot_state = STATE_ERROR;
+            break;
+          }
+          if (motor_link.fb_age_us > MOTOR_FB_TIMEOUT) { 
+            send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
+            robot_state = STATE_ERROR;
             break;
           }
 
@@ -125,47 +151,62 @@ TelemetryPacket_t* RobotUpdate() {
           controlRun(&controller, CONTROL_DT, &out_l, &out_r);
 
           // 3. Send data to ESCs
-          send_motor_command(&MOT1_UART, CMD_SET_VAL, out_l, out_r);
-          
           if (fb.status == CMD_ERROR || fb.error != ERR_OK) {
             robot_state = STATE_ERROR;
           }
           else if (fb.status == CMD_STOP) {
             robot_state = STATE_STANDBY;
           }
+          else {
+            send_motor_command(&MOT1_UART, CMD_SET_VAL, out_l, out_r);
+          }
+          break;
+        }
 
-          if (motor_link.fb_age_us > MOTOR_FB_TIMEOUT) { 
-            send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
+        case STATE_FALLEN:{
+          static uint16_t stop_timer = 0;
+          out_l = 0.0f; out_r = 0.0f;
+          send_motor_command(&MOT1_UART, CMD_STOP, 0, 0); // every cycle, until motor driver acks
+          
+          if (fb.status == CMD_STOP) {
+            stop_timer = 0;
+            controlReset(&controller);
+            robot_state = STATE_STANDBY;
+          }
+          else if (++stop_timer >= STOP_ACK_TIMEOUT) {  // mot driver doesnt respond
+            stop_timer = 0;
             robot_state = STATE_ERROR;
           }
-          
           break;
+        }
 
-        case STATE_FALLEN:
+        case STATE_ERROR:{
+          static uint8_t  clear_requested = 0;
+          static uint16_t err_timer = 0;
+          out_l = 0.0f; out_r = 0.0f;
+            
+          if (ButtonIsPressed()) {
+            clear_requested = 1;
+            controlReset(&controller);
+          }
+          if (++err_timer >= ONE_SEC/10) { // every 100 ms
+            err_timer = 0;
+            send_motor_command(&MOT1_UART, clear_requested ? CMD_CLR_FLT : CMD_STOP, 0.0f, 0.0f);
+          }
+          if (clear_requested && fb.status == CMD_CLR_FLT) {
+            clear_requested = 0;
+            err_timer = 0;
+            robot_state = STATE_STANDBY;
+          }
+          break;
+        }
+        
+        default:{
           send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
           controlReset(&controller);
           out_l = 0.0f; out_r = 0.0f;
-
-          robot_state = STATE_STANDBY;
           break;
-
-        case STATE_ERROR:
-            if (ButtonIsPressed()) {
-              send_motor_command(&MOT1_UART, CMD_CLR_FLT, 0.0, 0.0);
-              controlReset(&controller);
-              out_l = 0.0f; out_r = 0.0f;
-            }
-
-            if (fb.status == CMD_CLR_FLT) {
-              robot_state = STATE_STANDBY;
-            }
-          break;
-
-        default:
-          send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
-          controlReset(&controller);
-          out_l = 0.0f; out_r = 0.0f;
-          break;
+        }
       }       
 
       ButtonClear(); // clear button memory

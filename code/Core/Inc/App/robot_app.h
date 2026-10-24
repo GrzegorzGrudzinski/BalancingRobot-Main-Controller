@@ -9,8 +9,8 @@
 
 typedef enum {
     STATE_STANDBY,
+    STATE_CONNECT,
     STATE_INIT,
-    STATE_IDLE,
     STATE_BALANCING,
     STATE_FALLEN,
     STATE_ERROR

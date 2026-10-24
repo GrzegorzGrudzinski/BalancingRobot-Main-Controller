@@ -9,13 +9,11 @@
 
 // extern FeedbackPacket_t motor_feedback_data;
 
-void updateControlState(ControlState_t *state, const FeedbackPacket_t *fb) {
-    IMU_Update();
+uint8_t updateControlState(ControlState_t *state, const FeedbackPacket_t *fb) {
+    uint8_t imu_err = IMU_Update();
     state->pitch      = IMU_GetPitchAngle();
     state->pitch_rate = IMU_GetPitchRate();
     state->yaw_rate   = IMU_GetYawRate();
-
-    // todo: disable irq ??
 
     state->left_wheel_pos  = fb->motor1_pos;
     state->right_wheel_pos = fb->motor2_pos;
@@ -27,6 +25,8 @@ void updateControlState(ControlState_t *state, const FeedbackPacket_t *fb) {
     state->position = (state->left_wheel_pos + state->right_wheel_pos)*WHEEL_RADIUS*0.5f;
 
     state->yaw = (state->right_wheel_pos - state->left_wheel_pos) * WHEEL_RADIUS / (ROBOT_WIDTH);
+
+    return imu_err;
 }
 
 static int constrain(int x, int lower, int upper) {
