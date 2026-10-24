@@ -87,5 +87,5 @@ float IMU_GetPitchRate(void) {
 }
 
 float IMU_GetYawRate(void) {
-    return MPU6050.Gy;
+    return MPU6050.Gz;
 }
