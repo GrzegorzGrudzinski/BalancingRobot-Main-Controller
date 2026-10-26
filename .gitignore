@@ -15,14 +15,6 @@ compile_commands.json
 mx.scratch
 project_tree*
 
-
-# --- SiL (sil/) ---
-sil/*.so
-sil/*.dll
-sil/*.dylib
-sil/test_core
-sil/*
-
 # --- Python ---
 __pycache__/
 *.pyc

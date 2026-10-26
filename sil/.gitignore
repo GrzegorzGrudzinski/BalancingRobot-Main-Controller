@@ -1,0 +1,5 @@
+*.so
+*.dll
+*.dylib
+test_core
+__pycache__/
