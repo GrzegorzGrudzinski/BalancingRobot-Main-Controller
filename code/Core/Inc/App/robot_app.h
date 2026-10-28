@@ -13,7 +13,8 @@ typedef enum {
     STATE_INIT,
     STATE_BALANCING,
     STATE_FALLEN,
-    STATE_ERROR
+    STATE_ERROR,
+    STATE_STOP
 } RobotState_t;
 
 //======================

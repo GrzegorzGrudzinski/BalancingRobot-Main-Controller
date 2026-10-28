@@ -40,6 +40,10 @@ static float angle = 0.0f;
 static float out_l = 0.0f;
 static float out_r = 0.0f;
 
+static uint16_t sat_timer = 0; // cycles with the output saturated in the same direction
+static int8_t   sat_dir   = 0; // +1 / -1 / 0 in the last cycle
+static uint8_t  target_sync = 0; // 1 = target_position not yet taken from a frame with wheel data
+
 void RobotInit() {
     IMU_Init();
     controlSystemInit(&controller);
@@ -123,17 +127,24 @@ TelemetryPacket_t* RobotUpdate() {
           }
           if (fb.status == CMD_START) {
             controlReset(&controller); // update the controller
+            target_sync = 1; // wait for real motor position data
             idle_timer = 0;
             upright_timer = 0;
+            sat_timer = 0; sat_dir = 0; // reset saturation history
             robot_state = STATE_BALANCING;
           }
           break;
         }
 
         case STATE_BALANCING:{ // normal operation
-          if (fabsf(angle) > MAX_ANGLE){// Out of range
+          if (fabsf(angle) > MAX_ANGLE ){ // Out of range
             send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
             robot_state = STATE_FALLEN;
+            break;
+          }
+          if (ButtonIsPressed()){ // manual stop
+            send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
+            robot_state = STATE_STOP;
             break;
           }
           if (imu_err_streak >= IMU_ERR_LIMIT) { // imu error
@@ -141,16 +152,37 @@ TelemetryPacket_t* RobotUpdate() {
             robot_state = STATE_ERROR;
             break;
           }
-          if (motor_link.fb_age_us > MOTOR_FB_TIMEOUT) { 
+          if (motor_link.fb_age_us > MOTOR_FB_TIMEOUT) {  // Motor feedback timeout
+            send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
+            robot_state = STATE_ERROR;
+            break;
+          }
+          // robot in the air: wheels too fast or pitch output saturated in one direction for too long
+          float pitch_out = controller.debug.pitch_output; // pitch from the prev cycle
+          int8_t dir = (pitch_out >= CTRL_MAX_OUT) ? 1 : (pitch_out <= -CTRL_MAX_OUT) ? -1 : 0;
+          if (dir != 0 && dir == sat_dir) {
+            if (sat_timer < UINT16_MAX) sat_timer++;
+          } else {
+            sat_timer = 0;
+          }
+          sat_dir = dir;
+
+          if (fabsf(CONTROL_STATE.velocity) > MAX_VELOCITY || sat_timer >= SAT_TIMEOUT) {
             send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
             robot_state = STATE_ERROR;
             break;
           }
 
+          // wait for the first frame with real wheel positions
+          if (target_sync && fb.status == CMD_SET_VAL) {
+            controlReset(&controller);
+            target_sync = 0;
+          }
+
           // 2. Calculate 
           controlRun(&controller, CONTROL_DT, &out_l, &out_r);
 
-          // 3. Send data to ESCs
+          // 3. Check motor status and send data to ESCs
           if (fb.status == CMD_ERROR || fb.error != ERR_OK) {
             robot_state = STATE_ERROR;
           }
@@ -163,7 +195,8 @@ TelemetryPacket_t* RobotUpdate() {
           break;
         }
 
-        case STATE_FALLEN:{
+        case STATE_FALLEN:
+        case STATE_STOP:{
           static uint16_t stop_timer = 0;
           out_l = 0.0f; out_r = 0.0f;
           send_motor_command(&MOT1_UART, CMD_STOP, 0, 0); // every cycle, until motor driver acks
@@ -224,3 +257,4 @@ TelemetryPacket_t* RobotUpdate() {
     } // if (loop_flag)
     return NULL; // brak nowego cyklu -> nie ma czego wysyłać
 }
+

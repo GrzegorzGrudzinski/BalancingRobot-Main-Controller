@@ -52,7 +52,7 @@ void controlSystemInit (Controller_t* ctrl) {
         .Ki = CASCADE_VEL_KI,
         .Kd = CASCADE_VEL_KD,
         .max_output = CASCADE_VEL_MAX_OUT,
-        .max_i = 0.3f * CASCADE_VEL_MAX_OUT,
+        .max_i = CASCADE_VEL_MAX_I, // was 0.3f * CASCADE_VEL_MAX_OUT,
         // .timeSample = LOOP_TIME
     };
 

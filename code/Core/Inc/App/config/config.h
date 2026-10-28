@@ -69,46 +69,51 @@
 #define CONTROL_DT (LOOP_TIME * 0.001f) // diff time in s (time change triggered with timer interrupt)
 
 #define TARGET_ANGLE  0.0f
-
-#define MAX_ANGLE   40.0f
-
-//===============================
-//  PID CONTROLLER PARAMETERS
-//===============================
-#define PID_KP  0.5f
-#define PID_KI  0.0f
-#define PID_KD  0.0f
-
-#define PID_MAX_OUT 1.0f
-#define PID_MAX_I ( 0.3f * PID_MAX_OUT )
+#define MAX_ANGLE   40.0f // [deg]  // 25.0f
 
 //===============================
-//  CASCADE PID CONTROLLER PARAMETERS
+//  CONTROLLER PARAMETERS
 //===============================
+#if CONTROLLER == CTRL_TYPE_CASCADE_PID
+  // Position
+  #define CASCADE_POS_KP 0.60f // was 0.40f
+  #define CASCADE_POS_KI 0.0f
+  #define CASCADE_POS_KD 0.0f
+  #define CASCADE_POS_MAX_OUT 1.0f  // velocity 
+  
+  // Velocity
+  #define CASCADE_VEL_KP 8.0f  // was 6.0f
+  #define CASCADE_VEL_KI 1.00f // was 0.50f
+  #define CASCADE_VEL_KD 0.0f // NOT USED
+  #define CASCADE_VEL_MAX_OUT 8.0f // angle 
 
-// Position
-#define CASCADE_POS_KP 0.40f // 0.3f
-#define CASCADE_POS_KI 0.0f
-#define CASCADE_POS_KD 0.0f
-#define CASCADE_POS_MAX_OUT 1.0f  // velocity 
+  // Pitch Angle
+  #define CASCADE_PITCH_KP 1.20f // was 0.80f
+  #define CASCADE_PITCH_KI 0.0f
+  #define CASCADE_PITCH_KD 0.05f // was 0.04f
+  #define CASCADE_PITCH_MAX_OUT 2.5f  // motors max input
+  #define CASCADE_VEL_MAX_I  6.0f 
 
-// Velocity
-#define CASCADE_VEL_KP 6.0f // 0.06f // 0.50f // 0.5f
-#define CASCADE_VEL_KI 0.50f // 2.0f // 2.0f
-#define CASCADE_VEL_KD 0.0f // NOT USED
-#define CASCADE_VEL_MAX_OUT 8.0f // angle 
+  // Yaw Angle
+  #define CASCADE_YAW_KP 0.0f // 0.1f
+  #define CASCADE_YAW_KI 0.0f
+  #define CASCADE_YAW_KD 0.0f
+  #define CASCADE_YAW_MAX_OUT 1.0f 
 
-// Pitch Angle
-#define CASCADE_PITCH_KP 0.80f 
-#define CASCADE_PITCH_KI 0.0f
-#define CASCADE_PITCH_KD 0.04f 
-#define CASCADE_PITCH_MAX_OUT 2.5f  // motors max input
+  #define CTRL_MAX_OUT CASCADE_PITCH_MAX_OUT
+#else
+  #define PID_KP  0.5f
+  #define PID_KI  0.0f
+  #define PID_KD  0.0f
 
-// Yaw Angle
-#define CASCADE_YAW_KP 0.0f // 0.1f
-#define CASCADE_YAW_KI 0.0f
-#define CASCADE_YAW_KD 0.0f
-#define CASCADE_YAW_MAX_OUT 1.0f 
+  #define PID_MAX_OUT 1.0f
+  #define PID_MAX_I ( 0.3f * PID_MAX_OUT )
+
+  #define CTRL_MAX_OUT PID_MAX_OUT
+#endif
+
+#define SAT_TIMEOUT   (ONE_SEC/2) // 0.5 s of output saturated in one direction -> robot lifted or falling
+#define MAX_VELOCITY  4.0f    // [m/s] faster only with the wheels in the air (or runaway)
 
 
 //======================
