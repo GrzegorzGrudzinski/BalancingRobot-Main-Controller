@@ -213,7 +213,8 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
 // USB RX 
 void USB_CDC_RxHandler(uint8_t* Buf, uint32_t Len)
 {
-	CDC_Transmit_FS(Buf, Len);
+	// CDC_Transmit_FS(Buf, Len);
+  (void)Buf; (void)Len;
 }
 
 
