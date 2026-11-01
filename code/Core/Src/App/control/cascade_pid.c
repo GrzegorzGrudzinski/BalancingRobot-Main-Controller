@@ -5,6 +5,8 @@
 #include "cascade_pid.h"
 #include "pid.h"
 
+#include "math.h"
+
 void CASCADE_PID_InitFunct  (Controller_t *ctrl, void* config_data) {
     (void)ctrl; (void)config_data;
 }
@@ -30,6 +32,11 @@ void CASCADE_PID_RunFunct (Controller_t *ctrl, float dt, float* out_l, float* ou
 
     float velocity_final_target = target_velocity; // todo rc control // ctrl->target_state.target_velocity
     
+    // Freeze vel integral when pushed (vel tresh || max pid angle output)(for quicker position recovery)
+    cascade->pid_velocity.freeze_i =
+        (cascade->vel_i_gate > 0.0f && fabsf(ctrl->observed_state.velocity) > cascade->vel_i_gate) ||
+        (fabsf(cascade->pid_pitch_angle.output) >= cascade->pid_pitch_angle.max_output);
+
     // Velocity loop 
     float velocity_output = run_pid_rate(
         &cascade->pid_velocity , 

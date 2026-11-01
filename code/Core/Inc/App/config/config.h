@@ -86,13 +86,14 @@
   #define CASCADE_VEL_KI 1.00f // was 0.50f
   #define CASCADE_VEL_KD 0.0f // NOT USED
   #define CASCADE_VEL_MAX_OUT 8.0f // angle 
+  #define CASCADE_VEL_MAX_I  6.0f  // [deg] velocity integral limit
+  #define CASCADE_VEL_I_GATE 0.20f // [m/s] integrate the velocity error only below this wheel speed
 
   // Pitch Angle
   #define CASCADE_PITCH_KP 1.20f // was 0.80f
   #define CASCADE_PITCH_KI 0.0f
   #define CASCADE_PITCH_KD 0.05f // was 0.04f
   #define CASCADE_PITCH_MAX_OUT 2.5f  // motors max input
-  #define CASCADE_VEL_MAX_I  6.0f 
 
   // Yaw Angle
   #define CASCADE_YAW_KP 0.0f // 0.1f

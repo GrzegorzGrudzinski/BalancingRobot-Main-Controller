@@ -23,10 +23,12 @@ void pidInit (PID_t *pid, const PID_Config_t* config)
 static float pid_step(PID_t *pid, float error,float d, float dt) {
     pid->error = error;
     pid->P = pid->error * pid->Kp;
-        
-    pid->error_sum += pid->error*dt;
-    pid->I = pid->Ki * pid->error_sum;
-    pid->I = pid->error_sum* pid->Ki;
+    
+    if (!pid->freeze_i) {
+        pid->error_sum += pid->error*dt;
+    }
+    pid->I = pid->error_sum * pid->Ki;
+
     if (pid->I > pid->max_i) {
         pid->I = pid->max_i;
         if (pid->Ki != 0.0f) pid->error_sum = pid->I / pid->Ki;
@@ -74,4 +76,5 @@ void pid_reset(PID_t *pid, float currnet_pos) {
     pid->P = 0.0f;
     pid->I = 0.0f;
     pid->D = 0.0f;
+    pid->freeze_i = 0;
 }

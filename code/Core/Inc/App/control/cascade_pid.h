@@ -16,6 +16,7 @@ typedef struct
     PID_t pid_pitch_angle;
     // PID_t pid_yaw_angle;
     
+    float vel_i_gate; // [m/s] velocity integral only below this lvl
 } CASCADE_t;
 
 

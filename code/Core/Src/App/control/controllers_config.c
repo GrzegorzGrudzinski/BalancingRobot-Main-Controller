@@ -55,6 +55,7 @@ void controlSystemInit (Controller_t* ctrl) {
         .max_i = CASCADE_VEL_MAX_I, // was 0.3f * CASCADE_VEL_MAX_OUT,
         // .timeSample = LOOP_TIME
     };
+    cascade.vel_i_gate = CASCADE_VEL_I_GATE;
 
     PID_Config_t pitch_pid_cfg = {
       .Kp = CASCADE_PITCH_KP,

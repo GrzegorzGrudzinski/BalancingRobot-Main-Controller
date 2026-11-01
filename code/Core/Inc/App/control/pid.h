@@ -1,6 +1,7 @@
 #ifndef PID_H_
 #define PID_H_
 
+#include <stdint.h>
 typedef struct 
 {
     float Kp;
@@ -32,6 +33,8 @@ typedef struct
     float P;
     float I;
     float D;
+
+    uint8_t freeze_i; // input: 1 = hold the integral in the next steps (set by the owner before each step, cleared by pid_reset)
 } PID_t;
 
 void pidInit (PID_t *pid, const PID_Config_t* config);
