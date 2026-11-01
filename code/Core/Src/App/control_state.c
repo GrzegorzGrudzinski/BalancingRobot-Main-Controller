@@ -7,7 +7,8 @@
 #include "imu_handler.h"
 #include "dualFOC_communication.h"
 
-// extern FeedbackPacket_t motor_feedback_data;
+#define DEG_TO_RAD 0.0174533f
+#define PITCH_COUPLING_SIGN (-1.0f) // pitch > 0 leans towards -x, so the encoder sees +r*pitch_rate 
 
 uint8_t updateControlState(ControlState_t *state, const FeedbackPacket_t *fb) {
     uint8_t imu_err = IMU_Update();
@@ -21,7 +22,8 @@ uint8_t updateControlState(ControlState_t *state, const FeedbackPacket_t *fb) {
     float left_vel  = fb->motor1_vel;
     float right_vel = fb->motor2_vel;
     
-    state->velocity = (left_vel + right_vel)* WHEEL_RADIUS*0.5f ;
+    // Velocity, with correction to angle change
+    state->velocity = ((left_vel + right_vel)*0.5f + PITCH_COUPLING_SIGN*(state->pitch_rate*DEG_TO_RAD)) * WHEEL_RADIUS;
     state->position = (state->left_wheel_pos + state->right_wheel_pos)*WHEEL_RADIUS*0.5f;
 
     state->yaw = (state->right_wheel_pos - state->left_wheel_pos) * WHEEL_RADIUS / (ROBOT_WIDTH);
