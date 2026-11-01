@@ -34,12 +34,15 @@ extern "C" {
 #endif
 
 /* Bump when a struct below or a function signature changes; control_core.py checks it */
-#define CTRL_API_VERSION 1
+#define CTRL_API_VERSION 2
 
 /* Floats only -> no padding, so a ctypes.Structure with c_float fields matches 1:1.
    The field order must be the same as in control_core.py (_PidParams, _CascadeParams, _Input, _Output). */
 typedef struct { float kp, ki, kd, max_output, max_i; } CtrlPidParams;
-typedef struct { CtrlPidParams position, velocity, pitch; } CtrlCascadeParams;
+typedef struct { 
+  CtrlPidParams position, velocity, pitch; 
+  float vel_i_gate;   /* [m/s] velocity integral gate */
+} CtrlCascadeParams;
 
 /* Measured state: the four values the firmware puts into observed_state */
 typedef struct { float pitch, pitch_rate, position, velocity; } CtrlInput;

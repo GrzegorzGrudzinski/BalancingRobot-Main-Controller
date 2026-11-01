@@ -155,13 +155,42 @@ static void test_cascade_independent_of_wall_clock(void)
        Now the integral has to grow by exactly N*dt*error, whatever the wall-clock time. */
     CtrlCascadeParams p = cascade_params();
     CtrlHandle *h = ctrl_create(&p);
-    CtrlInput in = { .velocity = -1.0f };            /* velocity error = +1 */
+    CtrlInput in = { .velocity = -0.1f };            /* velocity error = +1 */
     CtrlOutput o;
     ctrl_reset(h, &in);
     for (int i = 0; i < 200; i++) ctrl_step(h, &in, 0.005f, &o);
-    CHECK(NEAR(o.i_velocity, 0.5f * 1.0f * 1.0f, 1e-3f), "i_velocity=%f", o.i_velocity);
+    CHECK(NEAR(o.i_velocity, 0.5f * 1.0f * 0.1f, 1e-4f), "i_velocity=%f", o.i_velocity);
     ctrl_destroy(h);
 }
+
+/* ---- velocity integral gate ---- */
+static void test_velocity_integral_gate(void)
+{
+    CtrlCascadeParams p = cascade_params();          /* vel_i_gate = 0: no gate */
+    CtrlInput fast = { .velocity = -0.4f };          /* a push, not an offset; pitch loop 2.0 A, not saturated */
+    CtrlOutput o;
+    CtrlHandle *h = ctrl_create(&p);
+    ctrl_reset(h, &fast);
+    for (int i = 0; i < 100; i++) ctrl_step(h, &fast, 0.005f, &o);
+    CHECK(NEAR(o.i_velocity, 0.5f * 0.4f * 0.5f, 1e-3f), "no gate: integral grows, i_velocity=%f", o.i_velocity);
+    ctrl_destroy(h);
+
+    p.vel_i_gate = 0.2f;
+    h = ctrl_create(&p);
+    ctrl_reset(h, &fast);
+    for (int i = 0; i < 100; i++) ctrl_step(h, &fast, 0.005f, &o);
+    CHECK(NEAR(o.i_velocity, 0.0f, 1e-6f), "gate 0.2, |v| 0.4: integral frozen, i_velocity=%f", o.i_velocity);
+    CtrlInput slow = { .velocity = -0.1f };
+    ctrl_reset(h, &slow);
+    for (int i = 0; i < 100; i++) ctrl_step(h, &slow, 0.005f, &o);
+    CHECK(o.i_velocity > 0.01f, "gate 0.2, |v| 0.1: integral grows, i_velocity=%f", o.i_velocity);
+    CtrlInput tilted = { .pitch = 30.0f, .velocity = -0.1f };   /* pitch loop saturated */
+    ctrl_reset(h, &tilted);
+    for (int i = 0; i < 100; i++) ctrl_step(h, &tilted, 0.005f, &o);
+    CHECK(NEAR(o.i_velocity, 0.0f, 1e-3f), "saturated pitch: integral frozen, i_velocity=%f", o.i_velocity);
+    ctrl_destroy(h);
+}
+
 
 static void test_cascade_deterministic_and_dt_scaling(void)
 {
@@ -184,10 +213,10 @@ static void test_cascade_reset_zeroes_state(void)
 {
     CtrlCascadeParams p = cascade_params();
     CtrlHandle *h = ctrl_create(&p);
-    CtrlInput in = { .velocity = -1.0f };
+    CtrlInput in = { .velocity = -0.1f };
     CtrlOutput o;
     for (int i = 0; i < 100; i++) ctrl_step(h, &in, 0.005f, &o);
-    CHECK(o.i_velocity > 0.1f, "integral has grown");
+    CHECK(o.i_velocity > 0.01f, "integral has grown");
     CtrlInput at = { .position = 2.0f };
     ctrl_reset(h, &at);
     ctrl_step(h, &at, 0.005f, &o);
@@ -210,6 +239,7 @@ int main(void)
     test_api_basics();
     test_cascade_first_step_after_reset();
     test_cascade_independent_of_wall_clock();
+    test_velocity_integral_gate();
     test_cascade_deterministic_and_dt_scaling();
     test_cascade_reset_zeroes_state();
 

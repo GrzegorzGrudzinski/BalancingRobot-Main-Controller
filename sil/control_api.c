@@ -44,6 +44,7 @@ CtrlHandle *ctrl_create(const CtrlCascadeParams *params)
     init_pid(&h->cascade.pid_position,    &params->position);
     init_pid(&h->cascade.pid_velocity,    &params->velocity);
     init_pid(&h->cascade.pid_pitch_angle, &params->pitch);
+    h->cascade.vel_i_gate = params->vel_i_gate;
 
     h->ctrl.ctrl_type = CTRL_TYPE_CASCADE_PID;
     h->ctrl.init  = CASCADE_PID_InitFunct;

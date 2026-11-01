@@ -16,7 +16,7 @@ import os
 import sys
 from dataclasses import dataclass
 
-_API_VERSION = 1  # must match CTRL_API_VERSION in control_api.h
+_API_VERSION = 2  # must match CTRL_API_VERSION in control_api.h
 
 
 # --- mirrors of the C structs in control_api.h (same field order, floats only) ---
@@ -26,7 +26,12 @@ class _PidParams(C.Structure):
 
 
 class _CascadeParams(C.Structure):
-    _fields_ = [("position", _PidParams), ("velocity", _PidParams), ("pitch", _PidParams)]
+    _fields_ = [
+        ("position", _PidParams), 
+        ("velocity", _PidParams), 
+        ("pitch", _PidParams), 
+        ("vel_i_gate", C.c_float)
+        ]
 
 
 class _Input(C.Structure):
@@ -57,10 +62,11 @@ class PidParams:
 
 @dataclass
 class CascadeParams:
-    """Gains of the whole cascade. Defaults = config.h; keep them in sync by hand until step 16.1."""
+    """Gains of the whole cascade. Defaults = config.h"""
     position: PidParams = None
     velocity: PidParams = None
     pitch: PidParams = None
+    vel_i_gate: float = 0.20 # [m/s] CASCADE_VEL_I_GATE
 
     def __post_init__(self):
         self.position = self.position or PidParams(0.40, 0.0, 0.0, 1.0)    # CASCADE_POS_*
@@ -92,7 +98,7 @@ class CascadeController:
     def __init__(self, params: CascadeParams | None = None, lib_path: str | None = None):
         p = params or CascadeParams()
         self._lib = _load(lib_path)
-        cp = _CascadeParams(p.position._c(), p.velocity._c(), p.pitch._c())
+        cp = _CascadeParams(p.position._c(), p.velocity._c(), p.pitch._c(), p.vel_i_gate)
         self._h = self._lib.ctrl_create(C.byref(cp))
         if not self._h:
             raise MemoryError("ctrl_create failed")
