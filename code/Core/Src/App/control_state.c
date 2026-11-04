@@ -22,8 +22,14 @@ uint8_t updateControlState(ControlState_t *state, const FeedbackPacket_t *fb) {
     float left_vel  = fb->motor1_vel;
     float right_vel = fb->motor2_vel;
     
+    // Low-pass the pitch rate like the ESP wheel speed (MOT_VEL_FILTER) before subtracting it
+    static float pitch_rate_lpf = 0.0f;
+    const float a = WHEEL_VEL_LPF_TF / (WHEEL_VEL_LPF_TF + CONTROL_DT);
+    pitch_rate_lpf = a * pitch_rate_lpf + (1.0f - a) * state->pitch_rate;
+    
     // Velocity, with correction to angle change
-    state->velocity = ((left_vel + right_vel)*0.5f + PITCH_COUPLING_SIGN*(state->pitch_rate*DEG_TO_RAD)) * WHEEL_RADIUS;
+    state->velocity = ((left_vel + right_vel)*0.5f + PITCH_COUPLING_SIGN*(pitch_rate_lpf*DEG_TO_RAD)) * WHEEL_RADIUS;
+
     state->position = (state->left_wheel_pos + state->right_wheel_pos)*WHEEL_RADIUS*0.5f;
 
     state->yaw = (state->right_wheel_pos - state->left_wheel_pos) * WHEEL_RADIUS / (ROBOT_WIDTH);

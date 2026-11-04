@@ -71,6 +71,7 @@
 #define TARGET_ANGLE  0.0f
 #define MAX_ANGLE   40.0f // [deg]  // 25.0f
 
+#define WHEEL_VEL_LPF_TF 0.05f // [s] must equal MOT_VEL_FILTER on the ESP
 //===============================
 //  CONTROLLER PARAMETERS
 //===============================
