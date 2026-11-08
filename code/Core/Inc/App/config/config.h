@@ -7,6 +7,7 @@
 //  Hardware
 //======================
 
+// 
 #define WHEEL_RADIUS  0.055f  //
 #define ROBOT_WIDTH   0.200f  // .200 wheel-wheel; 0.160 frame
 #define ROBOT_HEIGHT  0.205f  // .205 floor to top; wheels center to the top: 0.155f
@@ -16,7 +17,6 @@
   STM PA3 -> RX   ESP -> 17 (TX) (czarne)
 */
 #define MOT1_UART huart2 // for  comm. with motor driver
-// #define MOT2_UART huart1
 
 #define IMU_I2C   hi2c2  // i2c for imu readings (PB3 SDA; PB10 SCL)
 
@@ -37,14 +37,23 @@
 
 #define LOOP_TIME   5  // 5 ms / 200 Hz
 #define ONE_SEC     ( 1000 / LOOP_TIME ) // 
-#define HALF_SEC    (  500 / LOOP_TIME ) // 
 
-#define DEBUG_TIME 50 // 500
+//======================
+//  PC Communication
+//======================
 
 // PC telemetry (from control loop)(200 Hz). 1 = every cycle, 2 = 100 Hz, 4 = 50 Hz...
 #define TELEMETRY_DECIMATION 1
+#define PC_TIMEOUT   ( (3*ONE_SEC)/10 ) // 300 ms without a valid PC frame -> stop (after the PC took over)
 
-#define MOTOR_FB_TIMEOUT  (10*LOOP_TIME*1000) // 50000 -> ~10 cycles
+#define PC_POS_STEP_MAX  0.5f // [m] max position target (from measured position)
+
+//======================
+//  ESP Communication
+//======================
+
+// 50000 -> ~10 cycles
+#define MOTOR_FB_TIMEOUT  (10*LOOP_TIME*1000) 
 #define STOP_ACK_TIMEOUT  ( ONE_SEC/10 ) // 100 ms for acknowledging STOP cmd
 
 //======================
@@ -77,7 +86,7 @@
 //===============================
 #if CONTROLLER == CTRL_TYPE_CASCADE_PID
   // Position
-  #define CASCADE_POS_KP 0.60f // was 0.40f
+  #define CASCADE_POS_KP 0.40f // was 0.40f
   #define CASCADE_POS_KI 0.0f
   #define CASCADE_POS_KD 0.0f
   #define CASCADE_POS_MAX_OUT 1.0f  // velocity 
@@ -91,9 +100,9 @@
   #define CASCADE_VEL_I_GATE 0.20f // [m/s] integrate the velocity error only below this wheel speed
 
   // Pitch Angle
-  #define CASCADE_PITCH_KP 1.20f // was 0.80f
+  #define CASCADE_PITCH_KP 0.8f // was 0.80f
   #define CASCADE_PITCH_KI 0.0f
-  #define CASCADE_PITCH_KD 0.05f // was 0.04f
+  #define CASCADE_PITCH_KD 0.04f // was 0.04f
   #define CASCADE_PITCH_MAX_OUT 2.5f  // motors max input
 
   // Yaw Angle

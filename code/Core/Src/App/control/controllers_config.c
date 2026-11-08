@@ -86,7 +86,32 @@ void controlSystemInit (Controller_t* ctrl) {
     pidInit(&cascade.pid_pitch_angle, &pitch_pid_cfg); 
     // pidInit(&cascade.pid_yaw_angle, &yaw_pid_cfg); 
     controlInit(ctrl, (void*)&cascade);
-
+    
 #endif
 
+}
+
+
+void controlSetParam(Controller_t* ctrl, uint8_t id, float value) {
+#if CONTROLLER == CTRL_TYPE_CASCADE_PID
+    CASCADE_t *c = (CASCADE_t*)ctrl->config_data; // = &cascade, set in controlSystemInit()
+    if (c == NULL || !(value >= 0.0f && value <= 100.0f)) return; // also rejects NaN and inf
+
+    switch (id) {
+      case CTRL_PARAM_POS_KP:    c->pid_position.Kp    = value; break;
+      case CTRL_PARAM_VEL_KP:    c->pid_velocity.Kp    = value; break;
+      case CTRL_PARAM_VEL_MAX_I: c->pid_velocity.max_i = value; break;
+      case CTRL_PARAM_PITCH_KP:  c->pid_pitch_angle.Kp = value; break;
+      case CTRL_PARAM_PITCH_KD:  c->pid_pitch_angle.Kd = value; break;
+      case CTRL_PARAM_VEL_KI: {  // keep I continuous: I = Ki * error_sum (Ki = 0 drops I to 0)
+        PID_t *pid = &c->pid_velocity;
+        pid->Ki = value;
+        pid->error_sum = (value != 0.0f) ? pid->I / value : 0.0f;
+        break;
+      }
+      default: break;
+    }
+#else
+    (void)ctrl; (void)id; (void)value; // no runtime gains for this controller type yet
+#endif
 }

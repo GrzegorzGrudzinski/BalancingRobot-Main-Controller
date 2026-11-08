@@ -69,8 +69,8 @@ void ctrl_reset(CtrlHandle *h, const CtrlInput *in)
 {
     if (h == NULL || in == NULL) return;
     load_input(&h->ctrl, in);
-    controlReset(&h->ctrl);                                  /* PIDs reset, as on CMD_START */
-    h->ctrl.target_state.target_position = in->position;   /* hold the current position (controlReset() sets it too) */
+    controlReset(&h->ctrl);                              /* PIDs reset, as on CMD_START */
+    h->ctrl.target_state.target_position = in->position; /* hold the current position (firmware: targetReset()) */
 }
 
 void ctrl_set_target(CtrlHandle *h, float target_pitch, float target_position)

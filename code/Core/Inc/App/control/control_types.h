@@ -21,10 +21,10 @@ typedef struct
 
 typedef struct
 {
-    float target_pitch;
-    float target_yaw;
-    float target_position;
-    float target_velocity;
+    float target_pitch;    // set by targetReset() (TARGET_ANGLE); offset of the pitch loop
+    float target_yaw;      // set by targetReset() (current yaw); unused yet
+    float target_position; // set by targetReset() and PC SET_TARGET TARGET_POS
+    float target_velocity; // set by targetReset() (0); unused yet
 } TargetState_t;
 
 /*

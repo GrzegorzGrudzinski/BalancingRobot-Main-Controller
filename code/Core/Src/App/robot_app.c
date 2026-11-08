@@ -10,6 +10,7 @@
 #include "imu_handler.h"
 #include "IO/button.h"
 #include "dualFOC_communication.h"
+#include "pc_command.h"
 #include "pc_telemetry.h"
 #include "diag.h"
 
@@ -35,23 +36,30 @@ Controller_t controller;
 #define  TARGET_STATE controller.target_state
 
 static RobotState_t robot_state = STATE_STANDBY;
-static float target_angle = TARGET_ANGLE;
 static float angle = 0.0f;
 static float out_l = 0.0f;
 static float out_r = 0.0f;
 
 static uint16_t sat_timer = 0; // cycles with the output saturated in the same direction
 static int8_t   sat_dir   = 0; // +1 / -1 / 0 in the last cycle
-static uint8_t  target_sync = 0; // 1 = target_position not yet taken from a frame with wheel data
+static uint8_t  target_sync = 0; // 1 = motor target_position not yet taken from a frame with wheel data
+
+static uint16_t pc_rx_age = 0; // control cycles since the last valid PC frame
+static uint8_t  pc_active = 0; // 1 = the PC sent a frame in this BALANCING run -> timeout armed
+
 
 void RobotInit() {
     IMU_Init();
     controlSystemInit(&controller);
-    TARGET_STATE.target_pitch = target_angle;
-    // TARGET_STATE.target_yaw = target_yaw;
+    targetReset(&TARGET_STATE, &CONTROL_STATE);
 
-    Diag_Init();  // DWT cycle counter (time base in microseconds)
-    memset(&diag, 0, sizeof(diag)); // Initialization-phase counters are not meaningful
+    diagInit();  // DWT cycle counter (time base in microseconds)
+    diagResetCounters();
+}
+
+static void robotReset(void) {
+    controlReset(&controller);
+    targetReset(&TARGET_STATE, &CONTROL_STATE);
 }
 
 TelemetryPacket_t* RobotUpdate() {
@@ -66,18 +74,38 @@ TelemetryPacket_t* RobotUpdate() {
       } else {
         imu_err_streak = 0;
       }
-    // TODO: updateTargetState(&TARGET_STATE, &pc_fb)
+
+      
+      // PC Commands
+      PcCommand_t cmd;
+      pcCommandBeginCycle();// only bytes received before this cycle (<= 255 B)
+      while (pcCommandPoll(&cmd)) {
+        pc_rx_age = 0;
+        if (cmd.type == PC_CMD_SET_PARAM) {
+          controlSetParam(&controller, cmd.param_id, cmd.value); // gains: any state
+        }
+        else if (robot_state == STATE_BALANCING && !target_sync) {
+          pc_active = 1;
+          pcProcessCMD(&cmd, &TARGET_STATE, &CONTROL_STATE);
+        }
+      }
+      if (pc_rx_age < UINT16_MAX) pc_rx_age++;
+      if (pc_active && pc_rx_age >= PC_TIMEOUT) { // link lost: stop where the robot is, keep balancing
+        targetReset(&TARGET_STATE, &CONTROL_STATE);
+        pc_active = 0;
+      }
 
       angle = CONTROL_STATE.pitch;
 
-      if ((robot_state == STATE_CONNECT || robot_state == STATE_INIT) &&
+      // check errors during startup
+      if ((robot_state == STATE_STANDBY || robot_state == STATE_CONNECT || robot_state == STATE_INIT) &&
           (fb.status == CMD_ERROR || fb.error != ERR_OK)) {
         robot_state = STATE_ERROR;
       }
       switch (robot_state) {
         case STATE_STANDBY:{
             if (ButtonIsPressed()) {
-              controlReset(&controller);
+              robotReset();
               out_l = 0.0f; out_r = 0.0f;
 
               send_motor_command(&MOT1_UART, CMD_START_INIT, 0, 0);
@@ -107,6 +135,13 @@ TelemetryPacket_t* RobotUpdate() {
           static uint16_t idle_timer = 0;
           static uint16_t upright_timer = 0;
           
+          if (ButtonIsPressed()) {  // cancel the start
+            send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
+            idle_timer = 0; upright_timer = 0;
+            robot_state = STATE_STOP;   // waits for the CMD_STOP ack, then STANDBY
+            break;
+          }
+
           if (fb.status == CMD_HELLO_MOTOR && fb.tx_seq != hello_tx_seq) {
             idle_timer = 0;
             upright_timer = 0;
@@ -126,8 +161,9 @@ TelemetryPacket_t* RobotUpdate() {
             idle_timer = 0;
           }
           if (fb.status == CMD_START) {
-            controlReset(&controller); // update the controller
+            robotReset(); // update the controller
             target_sync = 1; // wait for real motor position data
+            pc_active = 0;   // every BALANCING run starts without PC control
             idle_timer = 0;
             upright_timer = 0;
             sat_timer = 0; sat_dir = 0; // reset saturation history
@@ -175,7 +211,7 @@ TelemetryPacket_t* RobotUpdate() {
 
           // wait for the first frame with real wheel positions
           if (target_sync && fb.status == CMD_SET_VAL) {
-            controlReset(&controller);
+            robotReset();
             target_sync = 0;
           }
 
@@ -203,7 +239,7 @@ TelemetryPacket_t* RobotUpdate() {
           
           if (fb.status == CMD_STOP) {
             stop_timer = 0;
-            controlReset(&controller);
+            robotReset();
             robot_state = STATE_STANDBY;
           }
           else if (++stop_timer >= STOP_ACK_TIMEOUT) {  // mot driver doesnt respond
@@ -220,7 +256,7 @@ TelemetryPacket_t* RobotUpdate() {
             
           if (ButtonIsPressed()) {
             clear_requested = 1;
-            controlReset(&controller);
+            robotReset();
           }
           if (++err_timer >= ONE_SEC/10) { // every 100 ms
             err_timer = 0;
@@ -236,7 +272,7 @@ TelemetryPacket_t* RobotUpdate() {
         
         default:{
           send_motor_command(&MOT1_UART, CMD_STOP, 0, 0);
-          controlReset(&controller);
+          robotReset();
           out_l = 0.0f; out_r = 0.0f;
           break;
         }
