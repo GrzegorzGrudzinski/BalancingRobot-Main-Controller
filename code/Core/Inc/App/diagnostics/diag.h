@@ -1,8 +1,8 @@
 #ifndef DIAG_H
 #define DIAG_H
 
-#include <stdint.h>
 #include "main.h"   // CMSIS: DWT, CoreDebug, SystemCoreClock
+#include <stdint.h>
 
 typedef struct {
     volatile uint16_t loop_overrun_count;       // Tick arrived before previous one was handled
@@ -18,13 +18,15 @@ typedef struct {
 extern Diag_t diag;
 
 // Free-running CPU cycle counter (DWT) - time base with sub-microsecond resolution
-void Diag_Init(void);
-static inline uint32_t Diag_Cycles(void) { return DWT->CYCCNT; }
+void diagInit(void);
+static inline uint32_t diagCycles(void) { return DWT->CYCCNT; }
 
 // Cycle delta -> microseconds, saturated to 16 bits
-static inline uint16_t Diag_CyclesToUs16(uint32_t cycles) {
+static inline uint16_t diagCyclesToUs16(uint32_t cycles) {
     uint32_t us = cycles / (SystemCoreClock / 1000000U);
     return (us > UINT16_MAX) ? UINT16_MAX : (uint16_t)us;
 }
+
+void diagResetCounters(void);
 
 #endif /* DIAG_H */

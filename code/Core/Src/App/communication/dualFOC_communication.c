@@ -55,7 +55,7 @@ void send_motor_command(UART_HandleTypeDef *huart, uint8_t command, float mot1_v
     uint8_t state = HAL_UART_GetState(huart);
     if ( (state == HAL_UART_STATE_READY || state == HAL_UART_STATE_BUSY_RX) ) {
         cmd_seq++;
-        cmd_tx_cycles[cmd_seq & 0xFF] = Diag_Cycles();
+        cmd_tx_cycles[cmd_seq & 0xFF] = diagCycles();
       
         packet = create_motor_packet(command, mot1_value,mot2_value, cmd_seq);
         HAL_UART_Transmit_DMA(huart, (uint8_t*)&packet, sizeof(MotorPacket_t));
@@ -83,7 +83,7 @@ void MotorFeedbackSnapshot(FeedbackPacket_t *dst, MotorLinkInfo_t *link) {
     if (link != NULL) {
         link->cmd_seq   = seq;
         link->rtt_us    = rtt;
-        link->fb_age_us = Diag_CyclesToUs16(Diag_Cycles() - rx_cycles);
+        link->fb_age_us = diagCyclesToUs16(diagCycles() - rx_cycles);
     }
 }
 
@@ -110,7 +110,7 @@ void processRxPacket (UART_HandleTypeDef *huart) {
         rx_msg_received = 1;
         diag.feedback_rx_count++;
 
-        uint32_t now = Diag_Cycles();
+        uint32_t now = diagCycles();
 
         // lost feedback frames = gap in ESP counter
         if (have_esp_tx_seq) {
@@ -125,7 +125,7 @@ void processRxPacket (UART_HandleTypeDef *huart) {
         if (received_pkt->rx_seq != last_ack_seq) {
             last_ack_seq = received_pkt->rx_seq;
             if ((uint16_t)(cmd_seq - received_pkt->rx_seq) < 256U) { // 256 - history window
-                link_rtt_us = Diag_CyclesToUs16(now - cmd_tx_cycles[received_pkt->rx_seq & 0xFF]);
+                link_rtt_us = diagCyclesToUs16(now - cmd_tx_cycles[received_pkt->rx_seq & 0xFF]);
             }
         }
         fb_rx_cycles = now;
