@@ -35,6 +35,8 @@
 #include "IO/button.h"
 #include "config.h"
 #include "diag.h" // for uart error counter
+#include "pc_command.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -211,10 +213,9 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
 }
 
 // USB RX 
-void USB_CDC_RxHandler(uint8_t* Buf, uint32_t Len)
-{
-	// CDC_Transmit_FS(Buf, Len);
-  (void)Buf; (void)Len;
+void USB_CDC_RxHandler(uint8_t* Buf, uint32_t Len) {
+  // copy only; frames are parsed in RobotUpdate()
+  pcRxPush(Buf, Len); 
 }
 
 

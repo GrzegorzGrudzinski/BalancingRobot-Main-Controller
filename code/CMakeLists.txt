@@ -48,8 +48,10 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/robot_app.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/control_state.c"
+
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/communication/dualFOC_communication.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/communication/pc_telemetry.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/communication/pc_command.c"
     
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/App/diagnostics/diag.c"
     
